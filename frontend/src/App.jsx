@@ -1,5 +1,28 @@
-import AppRouter from "./routes/AppRouter";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-export default function App() {
-  return <AppRouter />;
+import PublicLayout from "./layouts/PublicLayout";
+
+import Home from "./pages/public/Home";
+
+function App() {
+    return (
+        <BrowserRouter>
+
+            <Routes>
+
+                <Route element={<PublicLayout />}>
+
+                    <Route
+                        path="/"
+                        element={<Home />}
+                    />
+
+                </Route>
+
+            </Routes>
+
+        </BrowserRouter>
+    );
 }
+
+export default App;
