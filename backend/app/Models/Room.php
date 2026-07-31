@@ -1,0 +1,52 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+
+class Room extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    protected $fillable = [
+        'uuid',
+        'property_id',
+        'room_type_id',
+        'room_number',
+        'floor',
+        'capacity',
+        'gender',
+        'booking_mode',
+        'description',
+        'display_order',
+        'status',
+    ];
+
+    protected $casts = [
+        'floor' => 'integer',
+        'capacity' => 'integer',
+        'display_order' => 'integer',
+        'status' => 'boolean',
+    ];
+
+    public function property(): BelongsTo
+    {
+        return $this->belongsTo(Property::class);
+    }
+
+    public function roomType(): BelongsTo
+    {
+        return $this->belongsTo(RoomType::class);
+    }
+
+    public function beds(): HasMany
+    {
+        return $this->hasMany(Bed::class)
+        ->orderBy('display_order');
+    }
+}
