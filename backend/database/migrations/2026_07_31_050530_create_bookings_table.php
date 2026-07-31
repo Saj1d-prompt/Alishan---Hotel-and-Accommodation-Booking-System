@@ -55,6 +55,10 @@ return new class extends Migration
             $table->index('payment_status');
             $table->index('check_in_date');
             $table->index('check_out_date');
+            $table->foreignId('guest_id')
+                ->constrained()
+                ->cascadeOnUpdate()
+                ->restrictOnDelete();
         });
     }
 
