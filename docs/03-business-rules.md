@@ -106,3 +106,17 @@
 * Avoid duplicate information.
 * Use foreign keys to maintain integrity.
 * Keep the system extensible for future business growth.
+
+## Public Identifiers
+
+Customers never see database IDs.
+
+Public-facing entities use:
+
+- Property Slug
+- Booking Reference
+- Payment Reference
+
+
+
+Booking references must be unique.

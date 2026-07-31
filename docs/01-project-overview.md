@@ -116,3 +116,12 @@ Laravel handles business logic, authentication, database operations, and payment
 Current Phase:
 
 System Analysis & Database Design
+
+## Architecture
+
+- REST API Architecture
+- Laravel Backend
+- React Frontend
+- MySQL Database
+- Role-Based Access Control (RBAC)
+- Stripe Payment Integration

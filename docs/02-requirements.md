@@ -73,6 +73,12 @@
 * User management
 * Payment management
 
+
+- Booking Reference Generation
+- Property Slug Generation
+- Room Availability Checking
+- Email Notifications
+
 ---
 
 ## Non-Functional Requirements
@@ -135,3 +141,7 @@ The system should support:
 * Housekeeping Management
 * Calendar View
 * Invoice Generation
+
+- SEO Friendly URLs
+- API Versioning
+- Audit Logging

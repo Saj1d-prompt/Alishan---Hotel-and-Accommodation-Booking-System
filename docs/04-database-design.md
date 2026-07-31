@@ -88,7 +88,14 @@ Examples:
 
 Every table uses:
 
-id
+- BIGINT UNSIGNED AUTO_INCREMENT
+- Primary Key named id
+
+Business tables may also include:
+
+- UUID
+- Slug
+- Public Reference Number
 
 ---
 
@@ -467,5 +474,11 @@ Potential future features include:
 * Invoice generation
 * Reporting dashboard
 
-# 15. Detailed Table Specifications
 
+```mermaid
+erDiagram
+    COUNTRY ||--o{ CITY : has
+    CITY ||--o{ PROPERTY : has
+    PROPERTY ||--o{ ROOM : contains
+    ROOM ||--o{ BED : contains
+```
