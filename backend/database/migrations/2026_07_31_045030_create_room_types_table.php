@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\BookingMode;
+use App\Enums\Gender;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,31 +13,55 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('room_types', function (Blueprint $table) {
+        Schema::create('rooms', function (Blueprint $table) {
 
             $table->id();
 
             $table->uuid('uuid')->unique();
 
-            $table->string('name', 100);
+            $table->foreignId('property_id')
+                ->constrained()
+                ->cascadeOnUpdate()
+                ->restrictOnDelete();
 
-            $table->string('slug', 120)->unique();
+            $table->foreignId('room_type_id')
+                ->constrained()
+                ->cascadeOnUpdate()
+                ->restrictOnDelete();
+
+            $table->string('room_number', 20);
+
+            $table->string('floor', 20)->nullable();
+
+            $table->unsignedTinyInteger('capacity');
+
+            $table->string('gender')
+                ->default(Gender::MIXED->value);
+
+            $table->string('booking_mode')
+                ->default(BookingMode::BOTH->value);
 
             $table->text('description')->nullable();
 
-            $table->unsignedTinyInteger('default_capacity');
+            $table->unsignedInteger('display_order')
+                ->default(0);
 
-            $table->unsignedInteger('display_order')->default(0);
-
-            $table->boolean('status')->default(true);
+            $table->boolean('status')
+                ->default(true);
 
             $table->timestamps();
 
             $table->softDeletes();
 
-            // Indexes
+            $table->unique([
+                'property_id',
+                'room_number'
+            ]);
+
             $table->index('status');
             $table->index('display_order');
+            $table->index('gender');
+            $table->index('booking_mode');
         });
     }
 
@@ -44,6 +70,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('room_types');
+        Schema::dropIfExists('rooms');
     }
 };

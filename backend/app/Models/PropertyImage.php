@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ImageCategory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,11 +12,6 @@ class PropertyImage extends Model
 {
     use HasFactory, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'uuid',
         'property_id',
@@ -33,22 +29,18 @@ class PropertyImage extends Model
         'status',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
-        'file_size' => 'integer',
-        'width' => 'integer',
-        'height' => 'integer',
-        'is_cover' => 'boolean',
+        'file_size'  => 'integer',
+        'width'      => 'integer',
+        'height'     => 'integer',
+        'is_cover'   => 'boolean',
         'sort_order' => 'integer',
-        'status' => 'boolean',
+        'status'     => 'boolean',
+        'category'   => ImageCategory::class,
     ];
 
     /**
-     * Get the property that owns the image.
+     * Property that owns this image.
      */
     public function property(): BelongsTo
     {

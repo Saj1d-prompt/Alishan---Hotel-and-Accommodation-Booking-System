@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Currency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,11 +12,6 @@ class PriceList extends Model
 {
     use HasFactory, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'uuid',
         'contract_id',
@@ -26,24 +22,20 @@ class PriceList extends Model
         'effective_from',
         'effective_until',
         'display_order',
-        'is_active',
+        'status',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
-        'price' => 'decimal:2',
-        'effective_from' => 'date',
+        'price'           => 'decimal:2',
+        'effective_from'  => 'date',
         'effective_until' => 'date',
-        'display_order' => 'integer',
-        'is_active' => 'boolean',
+        'display_order'   => 'integer',
+        'status'          => 'boolean',
+        'currency'        => Currency::class,
     ];
 
     /**
-     * Get the contract for this price.
+     * Contract associated with this price.
      */
     public function contract(): BelongsTo
     {
@@ -51,7 +43,7 @@ class PriceList extends Model
     }
 
     /**
-     * Get the room for this price.
+     * Room associated with this price.
      */
     public function room(): BelongsTo
     {
@@ -59,7 +51,7 @@ class PriceList extends Model
     }
 
     /**
-     * Get the bed for this price.
+     * Bed associated with this price (nullable).
      */
     public function bed(): BelongsTo
     {

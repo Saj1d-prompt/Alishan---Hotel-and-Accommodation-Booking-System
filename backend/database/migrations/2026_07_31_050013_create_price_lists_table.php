@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Currency;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -35,15 +36,19 @@ return new class extends Migration
 
             $table->decimal('price', 10, 2);
 
-            $table->char('currency', 3)->default('EUR');
+            $table->string('currency', 3)
+                ->default(Currency::EUR->value);
 
-            $table->date('effective_from')->nullable();
+            $table->date('effective_from');
 
-            $table->date('effective_until')->nullable();
+            $table->date('effective_until')
+                ->nullable();
 
-            $table->unsignedInteger('display_order')->default(0);
+            $table->unsignedInteger('display_order')
+                ->default(0);
 
-            $table->boolean('is_active')->default(true);
+            $table->boolean('status')
+                ->default(true);
 
             $table->timestamps();
 
@@ -52,8 +57,16 @@ return new class extends Migration
             $table->index('contract_id');
             $table->index('room_id');
             $table->index('bed_id');
-            $table->index('is_active');
-            $table->index(['effective_from', 'effective_until']);
+            $table->index('status');
+            $table->index('effective_from');
+            $table->index('effective_until');
+
+            $table->unique([
+                'contract_id',
+                'room_id',
+                'bed_id',
+                'effective_from'
+            ], 'price_lists_unique');
         });
     }
 
