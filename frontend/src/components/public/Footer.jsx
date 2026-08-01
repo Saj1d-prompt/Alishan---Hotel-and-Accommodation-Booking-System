@@ -20,7 +20,7 @@ const Footer = () => {
   };
 
   return (
-    <footer className="relative mt-24 bg-slate-950 text-slate-300">
+    <footer className="relative bg-slate-950 text-slate-300">
 
       {/* Top Gradient */}
 

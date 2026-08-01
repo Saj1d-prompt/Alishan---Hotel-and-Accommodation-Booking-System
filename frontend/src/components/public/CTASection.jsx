@@ -3,7 +3,7 @@ import { ArrowRight, CalendarDays } from "lucide-react";
 
 const CTASection = () => {
   return (
-    <section className="relative overflow-hidden py-24">
+    <section className="relative overflow-hidden pt-20 pb-16">
 
       {/* Background */}
 
