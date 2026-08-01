@@ -1,3 +1,7 @@
+import { useParams } from "react-router-dom";
+
+import locations from "@/data/locations";
+
 import Navbar from "@/components/public/Navbar";
 import Footer from "@/components/public/Footer";
 
@@ -11,33 +15,41 @@ import RoomTypes from "@/components/public/RoomTypes";
 import BookingCTA from "@/components/public/BookingCTA";
 
 const LocationDetails = () => {
-  return (
-    <>
-      <Navbar />
 
-      <main className="bg-slate-50">
+    const { slug } = useParams();
 
-        <Breadcrumb />
+    const location = locations.find(
+        (item) => item.slug === slug
+    );
 
-        <LocationDetailsHero />
+    return (
+        <>
+            <Navbar />
 
-        <LocationGallery />
+            <main className="bg-slate-50">
 
-        <LocationOverview />
+                <Breadcrumb location={location} />
 
-        <LocationAmenities />
+                <LocationDetailsHero location={location} />
 
-        <NearbyPlaces />
+                <LocationGallery location={location} />
 
-        <RoomTypes />
+                <LocationOverview location={location} />
 
-        <BookingCTA />
+                <LocationAmenities location={location} />
 
-      </main>
+                <NearbyPlaces location={location} />
 
-      <Footer />
-    </>
-  );
+                <RoomTypes location={location} />
+
+                <BookingCTA location={location} />
+
+            </main>
+
+            <Footer />
+
+        </>
+    );
 };
 
 export default LocationDetails;
