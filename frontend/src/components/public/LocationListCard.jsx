@@ -9,6 +9,11 @@ import {
   WashingMachine,
   ShieldCheck,
 } from "lucide-react";
+import {
+  formatRate,
+  getStartingRate,
+  getTermConfig,
+} from "@/lib/accommodation";
 
 const iconMap = {
   "High-Speed Wi-Fi": Wifi,
@@ -20,6 +25,16 @@ const iconMap = {
   Parking: ShieldCheck,
   Security: ShieldCheck,
 };
+
+const defaultConfig = getTermConfig(
+  location,
+  location.defaultTerm
+);
+
+const startingRate = getStartingRate(
+  location,
+  location.defaultTerm
+);
 
 const LocationListCard = ({ location }) => {
   return (
@@ -99,11 +114,14 @@ const LocationListCard = ({ location }) => {
             <div className="flex items-center gap-2 text-slate-600">
               <BedDouble size={18} />
 
-              {location.rooms} Rooms Available
+              {location.totalRooms} Rooms
             </div>
 
             <p className="mt-2 text-2xl font-bold text-blue-600">
-              {location.price}
+              {formatRate(
+                startingRate,
+                defaultConfig?.billingUnit
+              )}
             </p>
 
           </div>
