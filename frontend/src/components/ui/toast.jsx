@@ -1,11 +1,16 @@
-import * as React from "react"
-import { Toast as ToastPrimitive } from "@base-ui/react/toast"
+import { Toast as ToastPrimitive } from "@base-ui/react/toast";
+import {
+  CircleCheckIcon,
+  InfoIcon,
+  Loader2Icon,
+  OctagonXIcon,
+  TriangleAlertIcon,
+  XIcon,
+} from "lucide-react";
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { XIcon, CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
-
-const toast = ToastPrimitive.createToastManager()
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast-manager";
+import { cn } from "@/lib/utils";
 
 function ToastProvider({
   ...props
@@ -222,8 +227,6 @@ function Toaster({
   );
 }
 
-const createToastManager = ToastPrimitive.createToastManager
-const useToastManager = ToastPrimitive.useToastManager
 
 export {
   Toaster,
@@ -236,7 +239,4 @@ export {
   ToastProvider,
   ToastTitle,
   ToastViewport,
-  createToastManager,
-  toast,
-  useToastManager,
-}
+};
