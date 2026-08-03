@@ -7,45 +7,40 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('price_lists', function (Blueprint $table) {
-
             $table->id();
 
             $table->uuid('uuid')->unique();
 
-            $table->foreignId('contract_id')
+            $table->foreignId('property_contract_id')
                 ->constrained()
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
 
-            $table->foreignId('room_id')
+            $table->foreignId('room_type_id')
                 ->constrained()
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
-
-            $table->foreignId('bed_id')
-                ->nullable()
-                ->constrained()
-                ->cascadeOnUpdate()
-                ->nullOnDelete();
 
             $table->decimal('price', 10, 2);
 
             $table->string('currency', 3)
                 ->default(Currency::EUR->value);
 
+            /*
+             * NULL = not specified.
+             * TRUE = included.
+             * FALSE = excluded.
+             */
+            $table->boolean('utilities_included')
+                ->nullable();
+
             $table->date('effective_from');
 
             $table->date('effective_until')
                 ->nullable();
-
-            $table->unsignedInteger('display_order')
-                ->default(0);
 
             $table->boolean('status')
                 ->default(true);
@@ -54,27 +49,25 @@ return new class extends Migration
 
             $table->softDeletes();
 
-            $table->index('contract_id');
-            $table->index('room_id');
-            $table->index('bed_id');
             $table->index('status');
-            $table->index('effective_from');
-            $table->index('effective_until');
+
+            $table->index([
+                'effective_from',
+                'effective_until',
+            ]);
 
             $table->unique([
-                'contract_id',
-                'room_id',
-                'bed_id',
-                'effective_from'
+                'property_contract_id',
+                'room_type_id',
+                'effective_from',
             ], 'price_lists_unique');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('price_lists');
+        Schema::dropIfExists(
+            'price_lists'
+        );
     }
 };

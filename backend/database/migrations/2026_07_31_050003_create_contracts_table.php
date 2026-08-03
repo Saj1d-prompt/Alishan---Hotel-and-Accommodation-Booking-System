@@ -9,20 +9,42 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('contracts', function (Blueprint $table) {
-
             $table->id();
 
             $table->uuid('uuid')->unique();
 
-            $table->string('name',100);
+            $table->string('code', 30)->unique();
 
-            $table->unsignedTinyInteger('duration_months');
+            $table->string('name', 100);
 
-            $table->text('description')->nullable();
+            $table->string('billing_unit', 20);
 
-            $table->unsignedInteger('display_order')->default(0);
+            $table->unsignedSmallInteger('min_nights')
+                ->nullable();
 
-            $table->boolean('status')->default(true);
+            $table->unsignedTinyInteger('max_months')
+                ->nullable();
+
+            $table->unsignedTinyInteger('fixed_start_month')
+                ->nullable();
+
+            $table->unsignedTinyInteger('fixed_start_day')
+                ->nullable();
+
+            $table->unsignedTinyInteger('fixed_end_month')
+                ->nullable();
+
+            $table->unsignedTinyInteger('fixed_end_day')
+                ->nullable();
+
+            $table->text('description')
+                ->nullable();
+
+            $table->unsignedInteger('display_order')
+                ->default(0);
+
+            $table->boolean('status')
+                ->default(true);
 
             $table->timestamps();
 
