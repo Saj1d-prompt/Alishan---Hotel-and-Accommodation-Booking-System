@@ -1,0 +1,18 @@
+# Operating system
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Root-level Node installation should not exist
+/node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example

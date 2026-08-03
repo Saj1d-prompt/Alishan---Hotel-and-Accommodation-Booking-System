@@ -7,13 +7,37 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class PaymentResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'uuid' => $this->uuid,
+
+            'payment_reference' =>
+                $this->payment_reference,
+
+            'gateway' =>
+                $this->gateway,
+
+            'amount' =>
+                $this->amount,
+
+            'currency' =>
+                $this->currency?->value,
+
+            'status' =>
+                $this->payment_status?->value,
+
+            'paid_at' =>
+                $this->paid_at?->toISOString(),
+
+            'refunded_amount' =>
+                $this->refunded_amount,
+
+            'refunded_at' =>
+                $this->refunded_at?->toISOString(),
+
+            'created_at' =>
+                $this->created_at?->toISOString(),
+        ];
     }
 }

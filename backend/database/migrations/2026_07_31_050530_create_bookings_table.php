@@ -1,27 +1,23 @@
 <?php
 
 use App\Enums\BookingStatus;
-use App\Enums\PaymentStatus;
+use App\Enums\Currency;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('bookings', function (Blueprint $table) {
-
             $table->id();
 
             $table->uuid('uuid')->unique();
 
             $table->string('booking_reference', 30)->unique();
 
-            $table->foreignId('user_id')
+            $table->foreignId('guest_id')
                 ->constrained()
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
@@ -31,40 +27,86 @@ return new class extends Migration
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
 
+            /*
+             * Used only when an authenticated Admin creates a booking
+             * manually. Public booking requests will keep this NULL.
+             */
+            $table->foreignId('created_by_user_id')
+                ->nullable()
+                ->constrained('users')
+                ->cascadeOnUpdate()
+                ->nullOnDelete();
+
+            /*
+             * Admin who approved/rejected the booking request.
+             */
+            $table->foreignId('reviewed_by_user_id')
+                ->nullable()
+                ->constrained('users')
+                ->cascadeOnUpdate()
+                ->nullOnDelete();
+
+            $table->unsignedTinyInteger('guest_count')
+                ->default(1);
+
             $table->date('check_in_date');
 
             $table->date('check_out_date');
 
-            $table->decimal('total_amount', 10, 2);
+            /*
+             * Can remain NULL while the application is under review.
+             */
+            $table->decimal('total_amount', 10, 2)
+                ->nullable();
 
-            $table->string('booking_status')
-                ->default(BookingStatus::PENDING->value);
+            $table->string('currency', 3)
+                ->default(Currency::EUR->value);
 
-            $table->string('payment_status')
-                ->default(PaymentStatus::PENDING->value);
+            $table->string('booking_status', 40)
+                ->default(BookingStatus::PENDING_REVIEW->value);
 
-            $table->text('notes')->nullable();
+            $table->string('source', 30)
+                ->default('website');
+
+            $table->timestamp('reviewed_at')
+                ->nullable();
+
+            $table->text('rejection_reason')
+                ->nullable();
+
+            $table->timestamp('payment_due_at')
+                ->nullable();
+
+            $table->timestamp('confirmed_at')
+                ->nullable();
+
+            $table->timestamp('cancelled_at')
+                ->nullable();
+
+            $table->text('notes')
+                ->nullable();
 
             $table->timestamps();
 
             $table->softDeletes();
 
-            $table->index('user_id');
-            $table->index('property_id');
             $table->index('booking_status');
-            $table->index('payment_status');
-            $table->index('check_in_date');
-            $table->index('check_out_date');
-            $table->foreignId('guest_id')
-                ->constrained()
-                ->cascadeOnUpdate()
-                ->restrictOnDelete();
+
+            $table->index([
+                'property_id',
+                'check_in_date',
+                'check_out_date',
+            ]);
+
+            $table->index([
+                'property_id',
+                'booking_status',
+            ]);
+
+            $table->index('guest_id');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('bookings');

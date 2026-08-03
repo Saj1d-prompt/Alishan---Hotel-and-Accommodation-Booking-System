@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BookingItem extends Model
@@ -12,6 +12,7 @@ class BookingItem extends Model
 
     protected $fillable = [
         'booking_id',
+        'room_type_id',
         'room_id',
         'bed_id',
         'contract_id',
@@ -23,13 +24,18 @@ class BookingItem extends Model
 
     protected $casts = [
         'unit_price' => 'decimal:2',
-        'subtotal' => 'decimal:2',
         'quantity' => 'integer',
+        'subtotal' => 'decimal:2',
     ];
 
     public function booking(): BelongsTo
     {
         return $this->belongsTo(Booking::class);
+    }
+
+    public function roomType(): BelongsTo
+    {
+        return $this->belongsTo(RoomType::class);
     }
 
     public function room(): BelongsTo

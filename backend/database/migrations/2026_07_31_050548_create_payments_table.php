@@ -8,13 +8,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('payments', function (Blueprint $table) {
-
             $table->id();
 
             $table->uuid('uuid')->unique();
@@ -22,12 +18,23 @@ return new class extends Migration
             $table->foreignId('booking_id')
                 ->constrained()
                 ->cascadeOnUpdate()
-                ->cascadeOnDelete();
+                ->restrictOnDelete();
 
             $table->string('payment_reference', 100)
                 ->unique();
 
+            /*
+             * Stripe later, but keep the database provider-agnostic.
+             */
             $table->string('gateway', 50);
+
+            $table->string('gateway_session_id')
+                ->nullable()
+                ->unique();
+
+            $table->string('gateway_payment_intent_id')
+                ->nullable()
+                ->unique();
 
             $table->string('transaction_id')
                 ->nullable();
@@ -37,26 +44,39 @@ return new class extends Migration
             $table->string('currency', 3)
                 ->default(Currency::EUR->value);
 
-            $table->string('payment_status')
+            $table->string('payment_status', 30)
                 ->default(PaymentStatus::PENDING->value);
 
+            $table->string('failure_code')
+                ->nullable();
+
+            $table->text('failure_message')
+                ->nullable();
+
             $table->timestamp('paid_at')
+                ->nullable();
+
+            $table->decimal('refunded_amount', 10, 2)
+                ->default(0);
+
+            $table->timestamp('refunded_at')
                 ->nullable();
 
             $table->timestamps();
 
             $table->softDeletes();
 
-            $table->index('booking_id');
-            $table->index('payment_reference');
-            $table->index('payment_status');
+            $table->index([
+                'booking_id',
+                'payment_status',
+            ]);
+
             $table->index('gateway');
+
+            $table->index('transaction_id');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('payments');
