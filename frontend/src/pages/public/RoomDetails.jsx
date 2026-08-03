@@ -1,114 +1,66 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import roomTypes from "@/data/roomTypes";
-
-import Navbar from "@/components/public/Navbar";
-import Footer from "@/components/public/Footer";
-import BookingCTA from "@/components/public/BookingCTA";
 
 import Breadcrumb from "@/components/public/Breadcrumb";
 import RoomDetailsHero from "@/components/public/RoomDetailsHero";
 import RoomGallery from "@/components/public/RoomGallery";
 import RoomOverview from "@/components/public/RoomOverview";
 import RoomAmenities from "@/components/public/RoomAmenities";
-// import PricingSidebar from "@/components/public/PricingSidebar";
+import BookingCTA from "@/components/public/BookingCTA";
 
 const RoomDetails = () => {
   const { slug } = useParams();
 
-  const room = roomTypes.find(
-    (item) => item.slug === slug
-  );
+  const room = roomTypes.find((item) => item.slug === slug);
 
   if (!room) {
     return (
-      <>
-        <Navbar />
+      <main className="flex min-h-[70vh] items-center justify-center bg-slate-50 px-6 pt-20">
+        <div className="max-w-lg text-center">
+          <h1 className="text-4xl font-bold text-slate-900">
+            Room Not Found
+          </h1>
 
-        <div className="flex min-h-[70vh] items-center justify-center bg-slate-50 px-6">
+          <p className="mt-4 text-lg text-slate-600">
+            The requested room type could not be found.
+          </p>
 
-          <div className="text-center">
-
-            <h1 className="text-5xl font-bold text-slate-900">
-              Room Not Found
-            </h1>
-
-            <p className="mt-4 text-lg text-slate-600">
-              The requested room could not be found.
-            </p>
-
-          </div>
-
+          <Link
+            to="/rooms"
+            className="mt-8 inline-flex rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700"
+          >
+            View Rooms
+          </Link>
         </div>
-
-        <Footer />
-      </>
+      </main>
     );
   }
 
   return (
-    <>
-      <Navbar />
+    <main className="bg-slate-50 pt-20">
+      <Breadcrumb
+        location={{
+          name: room.title,
+        }}
+      />
 
-      <main className="bg-slate-50">
+      <RoomDetailsHero room={room} />
 
-        {/* Breadcrumb */}
+      <RoomGallery room={room} />
 
-        <Breadcrumb
-          location={{
-            name: room.title,
-          }}
-        />
+      <section className="py-20">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="max-w-4xl space-y-16">
+            <RoomOverview room={room} />
 
-        {/* Hero */}
-
-        <RoomDetailsHero room={room} />
-
-        {/* Gallery */}
-
-        <RoomGallery room={room} />
-
-        {/* Main Content */}
-
-        <section className="py-20">
-
-          <div className="mx-auto grid max-w-7xl gap-12 px-6 lg:grid-cols-[2fr_420px]">
-
-            {/* Left */}
-
-            <div className="space-y-16">
-
-              <RoomOverview room={room} />
-
-              <RoomAmenities room={room} />
-
-            </div>
-
-            {/* Right */}
-
-            <div>
-
-              <div className="sticky top-28">
-
-                {/* <PricingSidebar room={room} /> */}
-
-              </div>
-
-            </div>
-
+            <RoomAmenities room={room} />
           </div>
+        </div>
+      </section>
 
-        </section>
-
-        {/* CTA */}
-
-        <BookingCTA />
-
-      </main>
-
-      <Footer />
-
-    </>
+      <BookingCTA room={room} />
+    </main>
   );
 };
 

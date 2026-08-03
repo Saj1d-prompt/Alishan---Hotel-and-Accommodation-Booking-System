@@ -1,10 +1,14 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { MapPin, BedDouble, ArrowRight } from "lucide-react";
+import {
+  ArrowRight,
+  BedDouble,
+  MapPin,
+} from "lucide-react";
 
 const LocationCard = ({ location }) => {
   return (
-    <motion.div
+    <motion.article
       whileHover={{ y: -8 }}
       transition={{ duration: 0.25 }}
       className="group overflow-hidden rounded-3xl bg-white shadow-lg"
@@ -18,52 +22,40 @@ const LocationCard = ({ location }) => {
       </div>
 
       <div className="space-y-4 p-6">
-
         <div>
-
-          <h3 className="text-2xl font-bold">
+          <h3 className="text-2xl font-bold text-slate-900">
             {location.name}
           </h3>
 
-          <div className="mt-2 flex items-center gap-2 text-gray-500">
+          <div className="mt-2 flex items-center gap-2 text-slate-500">
             <MapPin size={18} />
+
             {location.city}
           </div>
-
         </div>
 
-        <div className="flex items-center justify-between">
+        <div>
+          <p className="text-lg font-bold text-blue-600">
+            {location.price}
+          </p>
 
-          <div>
+          <div className="mt-1 flex items-center gap-2 text-slate-500">
+            <BedDouble size={18} />
 
-            <p className="text-lg font-bold text-blue-600">
-              {location.price}
-            </p>
-
-            <div className="mt-1 flex items-center gap-2 text-gray-500">
-
-              <BedDouble size={18} />
-
-              {location.rooms} Rooms
-
-            </div>
-
+            {location.rooms} Rooms
           </div>
-
         </div>
 
         <Link
-          to={`/properties/${location.slug}`}
+          to={`/locations/${location.slug}`}
           className="inline-flex items-center gap-2 font-semibold text-blue-600 transition hover:gap-3"
         >
-          View Property
+          View Location
 
           <ArrowRight size={18} />
-
         </Link>
-
       </div>
-    </motion.div>
+    </motion.article>
   );
 };
 

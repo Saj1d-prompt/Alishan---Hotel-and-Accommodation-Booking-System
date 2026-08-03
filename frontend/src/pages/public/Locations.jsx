@@ -1,27 +1,16 @@
-import Navbar from "@/components/public/Navbar";
-import Footer from "@/components/public/Footer";
-import CTASection from "@/components/public/CTASection";
-
 import LocationHero from "@/components/public/LocationHero";
 import LocationGrid from "@/components/public/LocationGrid";
+import CTASection from "@/components/public/CTASection";
 
 const Locations = () => {
   return (
-    <>
-      <Navbar />
+    <main className="bg-slate-50">
+      <LocationHero />
 
-      <main className="bg-slate-50">
+      <LocationGrid />
 
-        <LocationHero />
-
-        <LocationGrid />
-
-        <CTASection />
-
-      </main>
-
-      <Footer />
-    </>
+      <CTASection />
+    </main>
   );
 };
 
