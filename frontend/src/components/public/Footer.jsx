@@ -1,205 +1,173 @@
 import {
-  ArrowUp,
+  Building2,
+  Mail,
   MapPin,
   Phone,
-  Mail,
+  ExternalLink,
 } from "lucide-react";
 
-import {
-  FaFacebookF,
-  FaInstagram,
-  FaLinkedinIn,
-} from "react-icons/fa";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
+  const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="relative bg-slate-950 text-slate-300">
-
-      {/* Top Gradient */}
-
-      <div className="h-1 w-full bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-700" />
-
-      <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8">
-
+    <footer className="bg-slate-950 text-slate-300">
+      <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
-
-          {/* Logo */}
-
-          <div>
-
-            <h2 className="text-3xl font-bold tracking-wide text-white">
-              ALISHAN
+          {/* Brand / Company */}
+          <div className="lg:col-span-2">
+            <h2 className="text-2xl font-bold text-white">
+              Alishan Accommodation
             </h2>
 
-            <p className="mt-6 leading-8 text-slate-400">
-              Comfortable, secure and affordable accommodation
-              designed for students, professionals and families
-              across Lithuania.
+            <p className="mt-4 max-w-xl leading-7 text-slate-400">
+              Comfortable short-term and long-term accommodation
+              solutions in Vilnius, Lithuania.
             </p>
 
-            <div className="mt-8 flex gap-4">
+            <div className="mt-6 space-y-3 text-sm">
+              <div className="flex items-start gap-3">
+                <Building2
+                  size={18}
+                  className="mt-0.5 shrink-0 text-blue-400"
+                />
 
-              <a
-                href="#"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-800 transition-all duration-300 hover:-translate-y-1 hover:bg-blue-600 hover:text-white"
-              >
-                <FaFacebookF />
-              </a>
+                <div>
+                  <p className="font-medium text-white">
+                    Operated by MB Ethos 24
+                  </p>
 
-              <a
-                href="#"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-800 transition-all duration-300 hover:-translate-y-1 hover:bg-pink-600 hover:text-white"
-              >
-                <FaInstagram />
-              </a>
+                  <p className="text-slate-400">
+                    Company code: 306713846
+                  </p>
+                </div>
+              </div>
 
-              <a
-                href="#"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-800 transition-all duration-300 hover:-translate-y-1 hover:bg-sky-600 hover:text-white"
-              >
-                <FaLinkedinIn />
-              </a>
+              <div className="flex items-start gap-3">
+                <MapPin
+                  size={18}
+                  className="mt-0.5 shrink-0 text-blue-400"
+                />
 
+                <p className="text-slate-400">
+                  Žirmūnų g. 57, Vilnius, 09110 Vilniaus m. sav.,
+                  Lithuania
+                </p>
+              </div>
             </div>
-
           </div>
 
-          {/* Quick Links */}
-
+          {/* Navigation */}
           <div>
-
-            <h3 className="mb-6 text-xl font-semibold text-white">
-              Quick Links
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-white">
+              Explore
             </h3>
 
-            <ul className="space-y-4">
+            <nav className="mt-5 space-y-3">
+              <Link
+                to="/"
+                className="block transition hover:text-white"
+              >
+                Home
+              </Link>
 
-              <li>
-                <a href="/" className="transition hover:text-blue-400">
-                  Home
-                </a>
-              </li>
+              <Link
+                to="/locations"
+                className="block transition hover:text-white"
+              >
+                Locations
+              </Link>
 
-              <li>
-                <a href="#locations" className="transition hover:text-blue-400">
-                  Locations
-                </a>
-              </li>
+              <Link
+                to="/rooms"
+                className="block transition hover:text-white"
+              >
+                Rooms
+              </Link>
 
-              <li>
-                <a href="#why-us" className="transition hover:text-blue-400">
-                  Why Choose Us
-                </a>
-              </li>
+              <Link
+                to="/about"
+                className="block transition hover:text-white"
+              >
+                About
+              </Link>
 
-              <li>
-                <a href="#experience" className="transition hover:text-blue-400">
-                  Experience
-                </a>
-              </li>
-
-            </ul>
-
-          </div>
-
-          {/* Locations */}
-
-          <div>
-
-            <h3 className="mb-6 text-xl font-semibold text-white">
-              Our Locations
-            </h3>
-
-            <ul className="space-y-4">
-
-              <li>Šeškinės</li>
-
-              <li>Pylimo</li>
-
-              <li>Latgalių</li>
-
-            </ul>
-
+              <Link
+                to="/contact"
+                className="block transition hover:text-white"
+              >
+                Contact
+              </Link>
+            </nav>
           </div>
 
           {/* Contact */}
-
           <div>
-
-            <h3 className="mb-6 text-xl font-semibold text-white">
-              Contact Us
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-white">
+              Contact
             </h3>
 
-            <div className="space-y-5">
+            <div className="mt-5 space-y-4">
+              <a
+                href="mailto:alishan@ethos24lt.com"
+                className="flex items-start gap-3 transition hover:text-white"
+              >
+                <Mail
+                  size={18}
+                  className="mt-0.5 shrink-0 text-blue-400"
+                />
 
-              <div className="flex items-start gap-3">
-                <MapPin className="mt-1 h-5 w-5 text-blue-400" />
-                <span>
-                  Vilnius,
-                  <br />
-                  Lithuania
+                <span className="break-all">
+                  alishan@ethos24lt.com
                 </span>
-              </div>
+              </a>
 
-              <div className="flex items-center gap-3">
-                <Phone className="h-5 w-5 text-blue-400" />
-                <span>+370 XXX XXX XXX</span>
-              </div>
+              <a
+                href="tel:+37069400005"
+                className="flex items-center gap-3 transition hover:text-white"
+              >
+                <Phone
+                  size={18}
+                  className="shrink-0 text-blue-400"
+                />
 
-              <div className="flex items-center gap-3">
-                <Mail className="h-5 w-5 text-blue-400" />
-                <span>info@alishan.lt</span>
-              </div>
+                <span>
+                  +370 69400005
+                </span>
+              </a>
 
+              <a
+                href="https://ethos24lt.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 transition hover:text-white"
+              >
+                <ExternalLink
+                  size={18}
+                  className="shrink-0 text-blue-400"
+                />
+
+                <span>
+                  MB Ethos 24 Website
+                </span>
+              </a>
             </div>
-
           </div>
-
         </div>
 
-        {/* Divider */}
+        <div className="mt-14 border-t border-slate-800 pt-8">
+          <div className="flex flex-col gap-4 text-sm text-slate-500 md:flex-row md:items-center md:justify-between">
+            <p>
+              © {currentYear} Alishan Accommodation. All rights reserved.
+            </p>
 
-        <div className="my-10 border-t border-slate-800" />
-
-        {/* Bottom */}
-
-        <div className="flex flex-col items-center justify-between gap-5 lg:flex-row">
-
-          <p className="text-center text-sm text-slate-500 lg:text-left">
-            © {new Date().getFullYear()} Alishan Accommodation.
-            All Rights Reserved.
-          </p>
-
-          <div className="flex gap-6 text-sm">
-
-            <a href="#" className="transition hover:text-blue-400">
-              Privacy Policy
-            </a>
-
-            <a href="#" className="transition hover:text-blue-400">
-              Terms & Conditions
-            </a>
-
+            <p>
+              Operated by MB Ethos 24 · Company code 306713846
+            </p>
           </div>
-
-          <button
-            onClick={scrollToTop}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-white transition-all duration-300 hover:-translate-y-1 hover:bg-blue-700"
-          >
-            <ArrowUp size={18} />
-          </button>
-
         </div>
-
       </div>
-
     </footer>
   );
 };
