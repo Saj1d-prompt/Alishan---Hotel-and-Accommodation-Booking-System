@@ -96,15 +96,13 @@ const PricingSidebar = ({
       </p>
 
       <div className="mt-4">
-
         <span className="text-4xl font-bold text-slate-900">
           €{rate}
         </span>
 
         <span className="ml-2 text-slate-500">
-          / {config.billingUnit}
+          / person / {config.billingUnit}
         </span>
-
       </div>
 
       <div className="mt-8 space-y-5">

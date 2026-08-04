@@ -4,7 +4,10 @@ export const isTermAllowed = (
   location,
   term
 ) => {
-  return location?.allowedTerms?.includes(term) ?? false;
+  return (
+    location?.allowedTerms?.includes(term)
+    ?? false
+  );
 };
 
 export const getTermConfig = (
@@ -15,7 +18,10 @@ export const getTermConfig = (
     return null;
   }
 
-  return location.termConfig?.[term] ?? null;
+  return (
+    location.termConfig?.[term]
+    ?? null
+  );
 };
 
 export const getRoomRate = (
@@ -32,7 +38,8 @@ export const getRoomRate = (
     return null;
   }
 
-  const rate = config.roomRates?.[capacity];
+  const rate =
+    config.roomRates?.[capacity];
 
   return typeof rate === "number"
     ? rate
@@ -55,7 +62,8 @@ export const getStartingRate = (
   const rates = Object.values(
     config.roomRates ?? {}
   ).filter(
-    (rate) => typeof rate === "number"
+    (rate) =>
+      typeof rate === "number"
   );
 
   if (rates.length === 0) {
@@ -69,15 +77,23 @@ export const formatRate = (
   amount,
   billingUnit
 ) => {
-  if (amount === null || amount === undefined) {
+  if (
+    amount === null
+    || amount === undefined
+  ) {
     return "Price unavailable";
   }
 
-  return `€${amount}/${billingUnit}`;
+  return `€${amount}/person/${billingUnit}`;
 };
 
-export const getTermLabel = (term) => {
-  return STAY_TERM_LABELS[term] ?? term;
+export const getTermLabel = (
+  term
+) => {
+  return (
+    STAY_TERM_LABELS[term]
+    ?? term
+  );
 };
 
 export const getUtilitiesLabel = (

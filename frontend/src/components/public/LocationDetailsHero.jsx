@@ -135,7 +135,7 @@ const LocationDetailsHero = ({
           </div>
 
           <p className="mt-2 text-slate-200">
-            Per {termConfig?.billingUnit}
+            Per person / {termConfig?.billingUnit}
           </p>
 
           <div className="my-8 border-t border-white/20" />
