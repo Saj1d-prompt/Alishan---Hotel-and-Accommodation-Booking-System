@@ -94,7 +94,7 @@ const LocationDetails = () => {
 
       <LocationOverview
         location={location}
-        selectedTerm={selectedTerm}
+        term={selectedTerm}
       />
 
       <TermSelector

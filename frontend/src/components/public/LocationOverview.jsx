@@ -1,175 +1,258 @@
-import { motion } from "framer-motion";
 import {
   BedDouble,
   Building2,
   CheckCircle2,
   Euro,
-  MapPinned,
+  MapPin,
 } from "lucide-react";
 
 import {
-  formatRate,
   getStartingRate,
   getTermConfig,
 } from "@/lib/accommodation";
 
-const highlights = [
+const DEFAULT_FEATURES = [
   "Fully furnished accommodation",
   "Comfortable and secure environment",
   "Excellent public transport connections",
   "High-speed Wi-Fi throughout the property",
 ];
 
-const LocationOverview = ({
+function formatEuroAmount(amount) {
+  const numericAmount = Number(amount);
+
+  if (!Number.isFinite(numericAmount)) {
+    return "Contact us";
+  }
+
+  return new Intl.NumberFormat("en-IE", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(numericAmount);
+}
+
+function LocationStatCard({
+  icon: Icon,
+  value,
+  unit,
+  description,
+}) {
+  return (
+    <article
+      className="
+        flex h-full min-h-[250px] min-w-0 flex-col
+        rounded-3xl border border-slate-200
+        bg-slate-50 p-7 shadow-sm
+        sm:p-8
+      "
+    >
+      <Icon
+        aria-hidden="true"
+        className="size-10 shrink-0 text-primary"
+        strokeWidth={1.8}
+      />
+
+      <div className="mt-7 min-w-0">
+        <p
+          className="
+            break-words text-3xl font-bold
+            leading-tight tracking-tight text-slate-950
+          "
+        >
+          {value}
+        </p>
+
+        {unit ? (
+          <p
+            className="
+              mt-2 text-base font-semibold
+              leading-6 text-slate-700
+            "
+          >
+            {unit}
+          </p>
+        ) : null}
+
+        <p className="mt-4 text-base leading-7 text-slate-600">
+          {description}
+        </p>
+      </div>
+    </article>
+  );
+}
+
+export default function LocationOverview({
   location,
-  selectedTerm,
-}) => {
-  const config = getTermConfig(
+  term,
+}) {
+  const termConfig = getTermConfig(
     location,
-    selectedTerm
+    term,
   );
 
+  const apiTerm = location?.terms?.find(
+    (availableTerm) =>
+      availableTerm.code === term,
+  );
+
+  const cityName =
+    location?.city?.name
+    ?? location?.city
+    ?? "Vilnius";
+
+  const totalRooms =
+    location?.total_rooms
+    ?? location?.totalRooms
+    ?? location?.roomsCount
+    ?? "—";
+
   const startingRate =
-    getStartingRate(
-      location,
-      selectedTerm
+    getStartingRate(location, term)
+    ?? apiTerm?.starting_price
+    ?? location?.starting_price
+    ?? location?.startingPrice
+    ?? null;
+
+  const billingUnit =
+    termConfig?.billingUnit
+    ?? termConfig?.billing_unit
+    ?? apiTerm?.billing_unit
+    ?? "month";
+
+  const description =
+    location?.short_description
+    ?? location?.shortDescription
+    ?? location?.description
+    ?? (
+      "Comfortable accommodation in Vilnius with fully "
+      + "furnished rooms and convenient access to public "
+      + "transport and nearby facilities."
     );
 
+  const features =
+    Array.isArray(location?.features)
+    && location.features.length > 0
+      ? location.features
+      : DEFAULT_FEATURES;
+
   return (
-    <section className="bg-white py-24">
-
+    <section className="bg-white py-16 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
-
-        <div className="grid items-center gap-20 lg:grid-cols-2">
-
-          <motion.div
-            initial={{
-              opacity: 0,
-              x: -40,
-            }}
-            whileInView={{
-              opacity: 1,
-              x: 0,
-            }}
-            viewport={{
-              once: true,
-            }}
-            transition={{
-              duration: 0.6,
-            }}
-          >
-
-            <span className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">
+        <div
+          className="
+            grid items-start gap-12
+            lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]
+            lg:gap-16
+          "
+        >
+          {/* Left content */}
+          <div className="min-w-0">
+            <p
+              className="
+                text-sm font-semibold uppercase
+                tracking-[0.3em] text-primary
+              "
+            >
               About This Location
-            </span>
-
-            <h2 className="mt-4 text-5xl font-bold leading-tight text-slate-900">
-              Experience Comfortable Living
-            </h2>
-
-            <p className="mt-8 text-lg leading-9 text-slate-600">
-              {location.description}
             </p>
 
-            <div className="mt-10 space-y-5">
+            <h2
+              className="
+                mt-6 max-w-2xl text-4xl font-bold
+                leading-tight tracking-tight text-slate-950
+                sm:text-5xl lg:text-6xl
+              "
+            >
+              Experience
 
-              {highlights.map((item) => (
-                <div
-                  key={item}
-                  className="flex items-start gap-4"
-                >
-                  <CheckCircle2
-                    size={24}
-                    className="mt-1 text-green-500"
-                  />
+              <span className="block">
+                Comfortable Living
+              </span>
+            </h2>
 
-                  <p className="text-lg text-slate-700">
-                    {item}
-                  </p>
-                </div>
-              ))}
+            <p
+              className="
+                mt-8 max-w-2xl text-lg
+                leading-8 text-slate-600
+              "
+            >
+              {description}
+            </p>
 
-            </div>
+            <ul className="mt-10 space-y-5">
+              {features.map((feature, index) => {
+                const featureText =
+                  typeof feature === "string"
+                    ? feature
+                    : feature?.title
+                      ?? feature?.name
+                      ?? feature?.label;
 
-          </motion.div>
+                if (!featureText) {
+                  return null;
+                }
 
-          <motion.div
-            initial={{
-              opacity: 0,
-              x: 40,
-            }}
-            whileInView={{
-              opacity: 1,
-              x: 0,
-            }}
-            viewport={{
-              once: true,
-            }}
-            transition={{
-              duration: 0.6,
-            }}
-            className="grid gap-6 sm:grid-cols-2"
+                return (
+                  <li
+                    key={`${featureText}-${index}`}
+                    className="
+                      flex items-start gap-4
+                      text-lg text-slate-700
+                    "
+                  >
+                    <CheckCircle2
+                      aria-hidden="true"
+                      className="
+                        mt-0.5 size-6 shrink-0
+                        text-emerald-500
+                      "
+                    />
+
+                    <span className="leading-7">
+                      {featureText}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {/* Right information cards */}
+          <div
+            className="
+              grid min-w-0 grid-cols-1
+              auto-rows-fr gap-6 sm:grid-cols-2
+            "
           >
-
-            <InfoCard
+            <LocationStatCard
               icon={Building2}
-              title={location.city}
+              value={cityName}
               description="Accommodation location in Lithuania."
             />
 
-            <InfoCard
+            <LocationStatCard
               icon={BedDouble}
-              title={location.totalRooms}
+              value={totalRooms}
               description="Total physical rooms at this location."
             />
 
-            <InfoCard
+            <LocationStatCard
               icon={Euro}
-              title={formatRate(
-                startingRate,
-                config?.billingUnit
-              )}
+              value={formatEuroAmount(startingRate)}
+              unit={`Per person / ${billingUnit}`}
               description="Starting accommodation rate."
             />
 
-            <InfoCard
-              icon={MapPinned}
-              title="Vilnius"
+            <LocationStatCard
+              icon={MapPin}
+              value={cityName}
               description="Convenient access to nearby facilities."
             />
-
-          </motion.div>
-
+          </div>
         </div>
-
       </div>
     </section>
   );
-};
-
-const InfoCard = ({
-  icon: Icon,
-  title,
-  description,
-}) => {
-  return (
-    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
-
-      <Icon
-        size={38}
-        className="text-blue-600"
-      />
-
-      <h3 className="mt-6 text-3xl font-bold text-slate-900">
-        {title}
-      </h3>
-
-      <p className="mt-3 text-slate-600">
-        {description}
-      </p>
-
-    </div>
-  );
-};
-
-export default LocationOverview;
+}
