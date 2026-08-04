@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ChargeBasis;
 use App\Enums\Currency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,6 +19,7 @@ class PriceList extends Model
         'room_type_id',
         'price',
         'currency',
+        'charge_basis',
         'utilities_included',
         'effective_from',
         'effective_until',
@@ -26,10 +28,17 @@ class PriceList extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+
         'currency' => Currency::class,
+
+        'charge_basis' => ChargeBasis::class,
+
         'utilities_included' => 'boolean',
+
         'effective_from' => 'date',
+
         'effective_until' => 'date',
+
         'status' => 'boolean',
     ];
 
@@ -42,6 +51,8 @@ class PriceList extends Model
 
     public function roomType(): BelongsTo
     {
-        return $this->belongsTo(RoomType::class);
+        return $this->belongsTo(
+            RoomType::class
+        );
     }
 }

@@ -2,36 +2,41 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ChargeBasis;
 use App\Enums\Currency;
 use App\Models\Contract;
 use App\Models\PriceList;
 use App\Models\Property;
 use App\Models\PropertyContract;
 use App\Models\RoomType;
-use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 class PriceListSeeder extends Seeder
 {
+    /*
+     * This represents the effective date of the current
+     * pricing data supplied by the client.
+     *
+     * Change it later if the client provides an official
+     * different effective date.
+     */
+    private const EFFECTIVE_FROM = '2026-08-01';
+
     public function run(): void
     {
-        $effectiveFrom = Carbon::create(
-            2026,
-            1,
-            1
-        )->toDateString();
-
         /*
          * ŠEŠKINĖS — LONG TERM
          *
-         * Utilities included.
+         * All prices are:
+         * - per person
+         * - per month
+         * - utilities included
          */
         $this->seedRates(
             propertySlug: 'seskines',
             contractCode: 'LONG_TERM',
             utilitiesIncluded: true,
-            effectiveFrom: $effectiveFrom,
             rates: [
                 1 => 160,
                 2 => 190,
@@ -43,13 +48,15 @@ class PriceListSeeder extends Seeder
         /*
          * LATGALIŲ — LONG TERM
          *
-         * Utilities excluded.
+         * All prices are:
+         * - per person
+         * - per month
+         * - utilities excluded
          */
         $this->seedRates(
             propertySlug: 'latgaliu',
             contractCode: 'LONG_TERM',
             utilitiesIncluded: false,
-            effectiveFrom: $effectiveFrom,
             rates: [
                 1 => 220,
                 2 => 180,
@@ -60,13 +67,15 @@ class PriceListSeeder extends Seeder
         /*
          * PYLIMO — LONG TERM
          *
-         * Utilities excluded.
+         * All prices are:
+         * - per person
+         * - per month
+         * - utilities excluded
          */
         $this->seedRates(
             propertySlug: 'pylimo',
             contractCode: 'LONG_TERM',
             utilitiesIncluded: false,
-            effectiveFrom: $effectiveFrom,
             rates: [
                 1 => 299,
                 2 => 199,
@@ -77,13 +86,17 @@ class PriceListSeeder extends Seeder
         /*
          * PYLIMO — SHORT TERM
          *
-         * Nightly prices.
+         * All prices are:
+         * - per person
+         * - per night
+         *
+         * Floors 3 and 4 are configured through
+         * property_contracts.allowed_floors.
          */
         $this->seedRates(
             propertySlug: 'pylimo',
             contractCode: 'SHORT_TERM',
             utilitiesIncluded: null,
-            effectiveFrom: $effectiveFrom,
             rates: [
                 1 => 25,
                 2 => 20,
@@ -96,7 +109,6 @@ class PriceListSeeder extends Seeder
         string $propertySlug,
         string $contractCode,
         ?bool $utilitiesIncluded,
-        string $effectiveFrom,
         array $rates,
     ): void {
         $property = Property::query()
@@ -107,17 +119,10 @@ class PriceListSeeder extends Seeder
             ->where('code', $contractCode)
             ->firstOrFail();
 
-        $propertyContract =
-            PropertyContract::query()
-                ->where(
-                    'property_id',
-                    $property->id
-                )
-                ->where(
-                    'contract_id',
-                    $contract->id
-                )
-                ->firstOrFail();
+        $propertyContract = PropertyContract::query()
+            ->where('property_id', $property->id)
+            ->where('contract_id', $contract->id)
+            ->firstOrFail();
 
         foreach ($rates as $capacity => $price) {
             $roomType = RoomType::query()
@@ -127,8 +132,12 @@ class PriceListSeeder extends Seeder
                 )
                 ->firstOrFail();
 
-            PriceList::updateOrCreate(
-                [
+            /*
+             * Use firstOrNew instead of replacing UUIDs every
+             * time the seeder is executed.
+             */
+            $priceList = PriceList::query()
+                ->firstOrNew([
                     'property_contract_id' =>
                         $propertyContract->id,
 
@@ -136,28 +145,32 @@ class PriceListSeeder extends Seeder
                         $roomType->id,
 
                     'effective_from' =>
-                        $effectiveFrom,
-                ],
-                [
-                    'uuid' =>
-                        (string) Str::uuid(),
+                        self::EFFECTIVE_FROM,
+                ]);
 
-                    'price' =>
-                        $price,
+            if (! $priceList->exists) {
+                $priceList->uuid =
+                    (string) Str::uuid();
+            }
 
-                    'currency' =>
-                        Currency::EUR->value,
+            $priceList->fill([
+                'price' => $price,
 
-                    'utilities_included' =>
-                        $utilitiesIncluded,
+                'currency' =>
+                    Currency::EUR->value,
 
-                    'effective_until' =>
-                        null,
+                'charge_basis' =>
+                    ChargeBasis::PER_PERSON->value,
 
-                    'status' =>
-                        true,
-                ]
-            );
+                'utilities_included' =>
+                    $utilitiesIncluded,
+
+                'effective_until' => null,
+
+                'status' => true,
+            ]);
+
+            $priceList->save();
         }
     }
 }

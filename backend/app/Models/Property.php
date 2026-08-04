@@ -37,6 +37,18 @@ class Property extends Model
         'status' => 'boolean',
     ];
 
+    /*
+     * Enables route-model binding using:
+     *
+     * /api/v1/locations/pylimo
+     *
+     * instead of an internal database ID.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     public function city(): BelongsTo
     {
         return $this->belongsTo(City::class);
