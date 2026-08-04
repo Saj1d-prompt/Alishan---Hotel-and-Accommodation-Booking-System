@@ -29,49 +29,30 @@ class Room extends Model
     ];
 
     protected $casts = [
-        'capacity'      => 'integer',
+        'floor' => 'integer',
+        'capacity' => 'integer',
         'display_order' => 'integer',
-        'gender'        => Gender::class,
-        'booking_mode'  => BookingMode::class,
-        'status'        => 'boolean',
+        'gender' => Gender::class,
+        'booking_mode' => BookingMode::class,
+        'status' => 'boolean',
     ];
 
-    /**
-     * Property that owns this room.
-     */
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);
     }
 
-    /**
-     * Room type.
-     */
     public function roomType(): BelongsTo
     {
         return $this->belongsTo(RoomType::class);
     }
 
-    /**
-     * Beds inside the room.
-     */
     public function beds(): HasMany
     {
         return $this->hasMany(Bed::class)
             ->orderBy('display_order');
     }
 
-    /**
-     * Pricing for this room.
-     */
-    public function priceLists(): HasMany
-    {
-        return $this->hasMany(PriceList::class);
-    }
-
-    /**
-     * Booking items.
-     */
     public function bookingItems(): HasMany
     {
         return $this->hasMany(BookingItem::class);

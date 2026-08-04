@@ -2,16 +2,21 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Country;
 use Illuminate\Database\Seeder;
 
 class CountrySeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        //
+        Country::updateOrCreate(
+            [
+                'iso_code' => 'LT',
+            ],
+            [
+                'name' => 'Lithuania',
+                'status' => true,
+            ]
+        );
     }
 }

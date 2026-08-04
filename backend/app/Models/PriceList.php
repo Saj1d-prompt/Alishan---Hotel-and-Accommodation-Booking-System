@@ -14,47 +14,34 @@ class PriceList extends Model
 
     protected $fillable = [
         'uuid',
-        'contract_id',
-        'room_id',
-        'bed_id',
+        'property_contract_id',
+        'room_type_id',
         'price',
         'currency',
+        'utilities_included',
         'effective_from',
         'effective_until',
-        'display_order',
         'status',
     ];
 
     protected $casts = [
-        'price'           => 'decimal:2',
-        'effective_from'  => 'date',
+        'price' => 'decimal:2',
+        'currency' => Currency::class,
+        'utilities_included' => 'boolean',
+        'effective_from' => 'date',
         'effective_until' => 'date',
-        'display_order'   => 'integer',
-        'status'          => 'boolean',
-        'currency'        => Currency::class,
+        'status' => 'boolean',
     ];
 
-    /**
-     * Contract associated with this price.
-     */
-    public function contract(): BelongsTo
+    public function propertyContract(): BelongsTo
     {
-        return $this->belongsTo(Contract::class);
+        return $this->belongsTo(
+            PropertyContract::class
+        );
     }
 
-    /**
-     * Room associated with this price.
-     */
-    public function room(): BelongsTo
+    public function roomType(): BelongsTo
     {
-        return $this->belongsTo(Room::class);
-    }
-
-    /**
-     * Bed associated with this price (nullable).
-     */
-    public function bed(): BelongsTo
-    {
-        return $this->belongsTo(Bed::class);
+        return $this->belongsTo(RoomType::class);
     }
 }

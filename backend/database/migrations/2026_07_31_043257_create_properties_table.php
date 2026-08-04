@@ -25,7 +25,7 @@ return new class extends Migration
 
             $table->string('slug', 180)->unique();
 
-            $table->string('address');
+            $table->string('address')->nullable();
 
             $table->string('postcode', 20)->nullable();
 

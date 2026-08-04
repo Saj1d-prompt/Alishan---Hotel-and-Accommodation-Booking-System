@@ -11,11 +11,6 @@ class RoomType extends Model
 {
     use HasFactory, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'uuid',
         'name',
@@ -26,22 +21,24 @@ class RoomType extends Model
         'status',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'default_capacity' => 'integer',
         'display_order' => 'integer',
         'status' => 'boolean',
     ];
 
-    /**
-     * Get all rooms of this room type.
-     */
     public function rooms(): HasMany
     {
         return $this->hasMany(Room::class);
+    }
+
+    public function priceLists(): HasMany
+    {
+        return $this->hasMany(PriceList::class);
+    }
+
+    public function bookingItems(): HasMany
+    {
+        return $this->hasMany(BookingItem::class);
     }
 }
