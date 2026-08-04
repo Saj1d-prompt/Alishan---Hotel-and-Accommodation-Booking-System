@@ -6,7 +6,6 @@ import {
 import { Link } from "react-router-dom";
 
 import {
-  formatRate,
   getRoomRate,
   getTermConfig,
   getTermLabel,
