@@ -1,15 +1,16 @@
-import useLayout from "@/hooks/useLayout";
 import {
-  LayoutDashboard,
-  Users,
-  Building2,
   BedDouble,
+  Building2,
   CalendarDays,
   CreditCard,
   FileText,
+  LayoutDashboard,
   Settings,
+  Users,
 } from "lucide-react";
 import { motion } from "framer-motion";
+
+import useLayout from "@/context/useLayout";
 
 import Logo from "./Logo";
 import SidebarItem from "./SidebarItem";
@@ -18,47 +19,48 @@ const menuItems = [
   {
     icon: LayoutDashboard,
     label: "Dashboard",
-    to: "/dashboard",
+    to: "/admin",
   },
   {
     icon: Users,
     label: "Guests",
-    to: "/guests",
+    to: "/admin/guests",
   },
   {
     icon: Building2,
     label: "Properties",
-    to: "/properties",
+    to: "/admin/properties",
   },
   {
     icon: BedDouble,
     label: "Rooms",
-    to: "/rooms",
+    to: "/admin/rooms",
   },
   {
     icon: CalendarDays,
     label: "Bookings",
-    to: "/bookings",
+    to: "/admin/bookings",
   },
   {
     icon: CreditCard,
     label: "Payments",
-    to: "/payments",
+    to: "/admin/payments",
   },
   {
     icon: FileText,
     label: "Reports",
-    to: "/reports",
+    to: "/admin/reports",
   },
   {
     icon: Settings,
     label: "Settings",
-    to: "/settings",
+    to: "/admin/settings",
   },
 ];
 
 export default function Sidebar() {
-    const { collapsed } = useLayout();
+  const { collapsed } = useLayout();
+
   return (
     <motion.aside
       animate={{
@@ -68,7 +70,7 @@ export default function Sidebar() {
         duration: 0.25,
         ease: "easeInOut",
       }}
-      className="flex h-screen flex-col border-r border-slate-200 bg-white shadow-sm"
+      className="flex h-screen shrink-0 flex-col border-r border-slate-200 bg-white shadow-sm"
     >
       <Logo collapsed={collapsed} />
 
@@ -85,7 +87,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="border-t border-slate-200 p-4">
-        {!collapsed && (
+        {!collapsed ? (
           <div className="text-center">
             <p className="text-sm font-semibold text-slate-800">
               Alishan
@@ -95,7 +97,7 @@ export default function Sidebar() {
               Accommodation System
             </p>
           </div>
-        )}
+        ) : null}
       </div>
     </motion.aside>
   );
