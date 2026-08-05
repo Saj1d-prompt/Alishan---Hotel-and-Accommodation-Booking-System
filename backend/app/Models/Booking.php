@@ -24,10 +24,14 @@ class Booking extends Model
         'guest_count',
         'check_in_date',
         'check_out_date',
+        'estimated_total_amount',
         'total_amount',
         'currency',
         'booking_status',
         'source',
+        'public_access_token_hash',
+        'submitted_at',
+        'privacy_accepted_at',
         'reviewed_at',
         'rejection_reason',
         'payment_due_at',
@@ -36,27 +40,53 @@ class Booking extends Model
         'notes',
     ];
 
+    protected $hidden = [
+        'public_access_token_hash',
+    ];
+
     protected $casts = [
         'guest_count' => 'integer',
+
         'check_in_date' => 'date',
+
         'check_out_date' => 'date',
+
+        'estimated_total_amount' =>
+            'decimal:2',
+
         'total_amount' => 'decimal:2',
+
         'currency' => Currency::class,
-        'booking_status' => BookingStatus::class,
+
+        'booking_status' =>
+            BookingStatus::class,
+
+        'submitted_at' => 'datetime',
+
+        'privacy_accepted_at' =>
+            'datetime',
+
         'reviewed_at' => 'datetime',
+
         'payment_due_at' => 'datetime',
+
         'confirmed_at' => 'datetime',
+
         'cancelled_at' => 'datetime',
     ];
 
     public function guest(): BelongsTo
     {
-        return $this->belongsTo(Guest::class);
+        return $this->belongsTo(
+            Guest::class
+        );
     }
 
     public function property(): BelongsTo
     {
-        return $this->belongsTo(Property::class);
+        return $this->belongsTo(
+            Property::class
+        );
     }
 
     public function createdBy(): BelongsTo
@@ -77,11 +107,22 @@ class Booking extends Model
 
     public function items(): HasMany
     {
-        return $this->hasMany(BookingItem::class);
+        return $this->hasMany(
+            BookingItem::class
+        );
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(
+            GuestDocument::class
+        );
     }
 
     public function payments(): HasMany
     {
-        return $this->hasMany(Payment::class);
+        return $this->hasMany(
+            Payment::class
+        );
     }
 }

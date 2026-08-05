@@ -18,43 +18,62 @@ class BookingItem extends Model
         'contract_id',
         'price_list_id',
         'unit_price',
-        'quantity',
+        'billing_unit',
+        'charge_basis',
+        'occupant_count',
+        'duration_units',
         'subtotal',
     ];
 
     protected $casts = [
         'unit_price' => 'decimal:2',
-        'quantity' => 'integer',
+
+        'occupant_count' => 'integer',
+
+        'duration_units' => 'integer',
+
         'subtotal' => 'decimal:2',
     ];
 
     public function booking(): BelongsTo
     {
-        return $this->belongsTo(Booking::class);
+        return $this->belongsTo(
+            Booking::class
+        );
     }
 
     public function roomType(): BelongsTo
     {
-        return $this->belongsTo(RoomType::class);
+        return $this->belongsTo(
+            RoomType::class
+        );
     }
 
     public function room(): BelongsTo
     {
-        return $this->belongsTo(Room::class);
+        return $this->belongsTo(
+            Room::class
+        );
     }
 
     public function bed(): BelongsTo
     {
-        return $this->belongsTo(Bed::class);
+        return $this->belongsTo(
+            Bed::class
+        );
     }
 
     public function contract(): BelongsTo
     {
-        return $this->belongsTo(Contract::class);
+        return $this->belongsTo(
+            Contract::class
+        );
     }
 
     public function priceList(): BelongsTo
     {
-        return $this->belongsTo(PriceList::class);
+        return $this->belongsTo(
+            PriceList::class
+        );
     }
 }

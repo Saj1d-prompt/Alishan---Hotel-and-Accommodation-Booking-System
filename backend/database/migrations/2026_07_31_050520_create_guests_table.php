@@ -13,37 +13,66 @@ return new class extends Migration
 
             $table->uuid('uuid')->unique();
 
-            $table->string('guest_code', 30)->unique();
+            $table->string('guest_code', 30)
+                ->unique();
 
             $table->string('first_name', 100);
 
-            $table->string('last_name', 100)->nullable();
+            $table->string('last_name', 100)
+                ->nullable();
 
             $table->string('phone', 30);
 
-            $table->string('email')->nullable();
+            $table->string('email');
 
-            $table->date('date_of_birth')->nullable();
+            $table->date('date_of_birth')
+                ->nullable();
 
-            $table->string('gender', 20)->nullable();
+            $table->string('gender', 20)
+                ->nullable();
 
-            $table->string('nationality', 100)->nullable();
+            $table->string('nationality', 100)
+                ->nullable();
 
-            $table->string('document_type', 30);
+            $table->string('document_type', 30)
+                ->default('passport');
 
-            $table->string('document_number', 100)->unique();
+            /*
+             * This value will be encrypted automatically
+             * by the Guest model.
+             */
+            $table->text('document_number');
 
-            $table->date('document_expiry_date')->nullable();
+            /*
+             * Searchable HMAC for duplicate detection.
+             * Never return this through an API.
+             */
+            $table->char(
+                'document_number_hash',
+                64
+            )->unique();
 
-            $table->text('address')->nullable();
+            $table->date('document_expiry_date')
+                ->nullable();
 
-            $table->string('emergency_contact_name', 100)->nullable();
+            $table->text('address')
+                ->nullable();
 
-            $table->string('emergency_contact_phone', 30)->nullable();
+            $table->string(
+                'emergency_contact_name',
+                100
+            )->nullable();
 
-            $table->text('notes')->nullable();
+            $table->string(
+                'emergency_contact_phone',
+                30
+            )->nullable();
 
-            $table->boolean('status')->default(true);
+            $table->text('notes')
+                ->nullable();
+
+            $table->boolean('status')
+                ->default(true);
 
             $table->timestamps();
 

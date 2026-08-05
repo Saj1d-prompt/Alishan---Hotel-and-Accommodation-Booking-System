@@ -10,12 +10,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('bookings', function (Blueprint $table) {
+        Schema::create('bookings', function (
+            Blueprint $table
+        ) {
             $table->id();
 
             $table->uuid('uuid')->unique();
 
-            $table->string('booking_reference', 30)->unique();
+            $table->string(
+                'booking_reference',
+                30
+            )->unique();
 
             $table->foreignId('guest_id')
                 ->constrained()
@@ -27,46 +32,82 @@ return new class extends Migration
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
 
-            /*
-             * Used only when an authenticated Admin creates a booking
-             * manually. Public booking requests will keep this NULL.
-             */
-            $table->foreignId('created_by_user_id')
+            $table->foreignId(
+                'created_by_user_id'
+            )
                 ->nullable()
                 ->constrained('users')
                 ->cascadeOnUpdate()
                 ->nullOnDelete();
 
-            /*
-             * Admin who approved/rejected the booking request.
-             */
-            $table->foreignId('reviewed_by_user_id')
+            $table->foreignId(
+                'reviewed_by_user_id'
+            )
                 ->nullable()
                 ->constrained('users')
                 ->cascadeOnUpdate()
                 ->nullOnDelete();
 
-            $table->unsignedTinyInteger('guest_count')
-                ->default(1);
+            $table->unsignedTinyInteger(
+                'guest_count'
+            )->default(1);
 
             $table->date('check_in_date');
 
             $table->date('check_out_date');
 
             /*
-             * Can remain NULL while the application is under review.
+             * Full estimated stay or contract value.
+             * This is not necessarily what Stripe
+             * will collect.
              */
-            $table->decimal('total_amount', 10, 2)
-                ->nullable();
+            $table->decimal(
+                'estimated_total_amount',
+                10,
+                2
+            )->nullable();
+
+            /*
+             * Actual amount approved by Admin for
+             * payment. This stays NULL during review.
+             */
+            $table->decimal(
+                'total_amount',
+                10,
+                2
+            )->nullable();
 
             $table->string('currency', 3)
-                ->default(Currency::EUR->value);
+                ->default(
+                    Currency::EUR->value
+                );
 
-            $table->string('booking_status', 40)
-                ->default(BookingStatus::PENDING_REVIEW->value);
+            $table->string(
+                'booking_status',
+                40
+            )->default(
+                BookingStatus::PENDING_REVIEW
+                    ->value
+            );
 
             $table->string('source', 30)
                 ->default('website');
+
+            /*
+             * Only the SHA-256 hash is stored.
+             * The raw token is returned once.
+             */
+            $table->char(
+                'public_access_token_hash',
+                64
+            )->unique();
+
+            $table->timestamp('submitted_at')
+                ->nullable();
+
+            $table->timestamp(
+                'privacy_accepted_at'
+            )->nullable();
 
             $table->timestamp('reviewed_at')
                 ->nullable();
