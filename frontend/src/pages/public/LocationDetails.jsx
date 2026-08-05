@@ -4,17 +4,17 @@ import {
   useSearchParams,
 } from "react-router-dom";
 
-import locations from "@/data/locations";
-
+import BookingCTA from "@/components/public/BookingCTA";
 import Breadcrumb from "@/components/public/Breadcrumb";
+import LocationAmenities from "@/components/public/LocationAmenities";
 import LocationDetailsHero from "@/components/public/LocationDetailsHero";
 import LocationGallery from "@/components/public/LocationGallery";
 import LocationOverview from "@/components/public/LocationOverview";
-import LocationAmenities from "@/components/public/LocationAmenities";
-import NearbyPlaces from "@/components/public/NearbyPlaces";
 import RoomTypes from "@/components/public/RoomTypes";
-import BookingCTA from "@/components/public/BookingCTA";
 import TermSelector from "@/components/public/TermSelector";
+
+import locations from "@/data/locations";
+import { STAY_TERMS } from "@/data/stayTerms";
 
 const LocationDetails = () => {
   const { slug } = useParams();
@@ -32,7 +32,6 @@ const LocationDetails = () => {
     return (
       <main className="flex min-h-[70vh] items-center justify-center bg-slate-50 px-6 pt-20">
         <div className="max-w-lg text-center">
-
           <h1 className="text-4xl font-bold text-slate-900">
             Location Not Found
           </h1>
@@ -48,7 +47,6 @@ const LocationDetails = () => {
           >
             View Locations
           </Link>
-
         </div>
       </main>
     );
@@ -66,35 +64,30 @@ const LocationDetails = () => {
 
   const handleTermChange = (term) => {
     const nextParams =
-      new URLSearchParams(
-        searchParams
-      );
+      new URLSearchParams(searchParams);
 
     nextParams.set("term", term);
 
-    setSearchParams(
-      nextParams,
-      {
-        replace: true,
-      }
-    );
+    if (term === STAY_TERMS.LONG_TERM) {
+      nextParams.delete("start_date");
+      nextParams.delete("end_date");
+    }
+
+    setSearchParams(nextParams, {
+      replace: true,
+    });
   };
 
   return (
     <main className="bg-slate-50 pt-20">
-
-      <Breadcrumb location={location} />
+      <Breadcrumb
+        location={location}
+        term={selectedTerm}
+      />
 
       <LocationDetailsHero
         location={location}
         selectedTerm={selectedTerm}
-      />
-
-      <LocationGallery location={location} />
-
-      <LocationOverview
-        location={location}
-        term={selectedTerm}
       />
 
       <TermSelector
@@ -103,20 +96,24 @@ const LocationDetails = () => {
         onTermChange={handleTermChange}
       />
 
-      <LocationAmenities location={location} />
-
-      <NearbyPlaces location={location} />
-
       <RoomTypes
         location={location}
         selectedTerm={selectedTerm}
       />
 
+      <LocationOverview
+        location={location}
+        selectedTerm={selectedTerm}
+      />
+
+      <LocationGallery location={location} />
+
+      <LocationAmenities location={location} />
+
       <BookingCTA
         location={location}
         term={selectedTerm}
       />
-
     </main>
   );
 };
