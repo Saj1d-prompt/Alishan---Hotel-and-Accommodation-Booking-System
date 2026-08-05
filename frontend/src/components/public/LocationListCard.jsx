@@ -1,16 +1,16 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
 import {
-  MapPin,
-  BedDouble,
   ArrowRight,
-  Wifi,
+  BedDouble,
   CookingPot,
-  WashingMachine,
+  MapPin,
   ShieldCheck,
+  WashingMachine,
+  Wifi,
 } from "lucide-react";
+import { Link } from "react-router-dom";
+
 import {
-  formatRate,
   getStartingRate,
   getTermConfig,
 } from "@/lib/accommodation";
@@ -26,28 +26,44 @@ const iconMap = {
   Security: ShieldCheck,
 };
 
-const defaultConfig = getTermConfig(
-  location,
-  location.defaultTerm
-);
-
-const startingRate = getStartingRate(
-  location,
-  location.defaultTerm
-);
-
 const LocationListCard = ({ location }) => {
+  const defaultConfig = getTermConfig(
+    location,
+    location.defaultTerm
+  );
+
+  const startingRate = getStartingRate(
+    location,
+    location.defaultTerm
+  );
+
+  const locationUrl =
+    `/locations/${location.slug}` +
+    `?term=${encodeURIComponent(
+      location.defaultTerm
+    )}`;
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      whileHover={{ y: -8 }}
-      transition={{ duration: 0.4 }}
+    <motion.article
+      initial={{
+        opacity: 0,
+        y: 30,
+      }}
+      whileInView={{
+        opacity: 1,
+        y: 0,
+      }}
+      viewport={{
+        once: true,
+      }}
+      whileHover={{
+        y: -8,
+      }}
+      transition={{
+        duration: 0.4,
+      }}
       className="group overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:shadow-2xl"
     >
-      {/* Image */}
-
       <div className="relative overflow-hidden">
         <img
           src={location.image}
@@ -64,10 +80,7 @@ const LocationListCard = ({ location }) => {
         </div>
       </div>
 
-      {/* Content */}
-
       <div className="p-7">
-
         <h2 className="text-3xl font-bold text-slate-900">
           {location.name}
         </h2>
@@ -81,12 +94,10 @@ const LocationListCard = ({ location }) => {
           {location.description}
         </p>
 
-        {/* Amenities */}
-
         <div className="mt-6 flex flex-wrap gap-2">
-
           {location.amenities.map((item) => {
-            const Icon = iconMap[item] || ShieldCheck;
+            const Icon =
+              iconMap[item] ?? ShieldCheck;
 
             return (
               <div
@@ -102,43 +113,35 @@ const LocationListCard = ({ location }) => {
               </div>
             );
           })}
-
         </div>
 
-        {/* Bottom */}
-
-        <div className="mt-8 flex items-center justify-between border-t pt-6">
-
+        <div className="mt-8 flex flex-col gap-5 border-t pt-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-
             <div className="flex items-center gap-2 text-slate-600">
               <BedDouble size={18} />
-
-              {location.totalRooms} Rooms
+              {location.totalRooms} rooms
             </div>
 
-            <p className="mt-2 text-2xl font-bold text-blue-600">
-              {formatRate(
-                startingRate,
-                defaultConfig?.billingUnit
-              )}
+            <p className="mt-3 text-3xl font-bold text-blue-600">
+              €{startingRate}
             </p>
 
+            <p className="mt-1 text-sm font-medium text-slate-500">
+              Per person /{" "}
+              {defaultConfig?.billingUnit}
+            </p>
           </div>
 
           <Link
-            to={`/locations/${location.slug}`}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition-all duration-300 hover:bg-blue-700 hover:gap-3"
+            to={locationUrl}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition-all duration-300 hover:gap-3 hover:bg-blue-700"
           >
             Explore
-
             <ArrowRight size={18} />
           </Link>
-
         </div>
-
       </div>
-    </motion.div>
+    </motion.article>
   );
 };
 

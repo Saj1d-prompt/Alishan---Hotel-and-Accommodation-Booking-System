@@ -1,6 +1,13 @@
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import {
+  CalendarDays,
+  Menu,
+  X,
+} from "lucide-react";
+import {
+  Link,
+  NavLink,
+} from "react-router-dom";
 
 import logo from "@/assets/logo/Alishan1.png";
 
@@ -14,14 +21,6 @@ const navItems = [
     path: "/locations",
   },
   {
-    name: "Rooms",
-    path: "/rooms",
-  },
-  {
-    name: "Book Now",
-    path: "/booking",
-  },
-  {
     name: "About",
     path: "/about",
   },
@@ -32,46 +31,60 @@ const navItems = [
 ];
 
 const Navbar = () => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [
+    isMobileMenuOpen,
+    setIsMobileMenuOpen,
+  ] = useState(false);
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
   };
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-8">
-        <NavLink
+        <Link
           to="/"
           aria-label="Alishan Accommodation home"
           onClick={closeMobileMenu}
+          className="shrink-0"
         >
           <img
             src={logo}
             alt="Alishan Accommodation"
-            className="h-20 w-auto object-contain"
+            className="h-16 w-auto object-contain"
           />
-        </NavLink>
+        </Link>
 
-        <nav className="hidden items-center gap-8 lg:flex">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === "/"}
-              className={({ isActive }) =>
-                [
-                  "font-medium transition-colors",
-                  isActive
-                    ? "text-blue-600"
-                    : "text-slate-700 hover:text-blue-600",
-                ].join(" ")
-              }
-            >
-              {item.name}
-            </NavLink>
-          ))}
-        </nav>
+        <div className="hidden items-center gap-8 lg:flex">
+          <nav className="flex items-center gap-8">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === "/"}
+                className={({ isActive }) =>
+                  [
+                    "font-medium transition-colors",
+                    isActive
+                      ? "text-blue-600"
+                      : "text-slate-700 hover:text-blue-600",
+                  ].join(" ")
+                }
+              >
+                {item.name}
+              </NavLink>
+            ))}
+          </nav>
+
+          <Link
+            to="/locations"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
+          >
+            <CalendarDays size={18} />
+            Book Now
+          </Link>
+        </div>
 
         <button
           type="button"
@@ -82,13 +95,21 @@ const Navbar = () => {
               : "Open navigation menu"
           }
           aria-expanded={isMobileMenuOpen}
-          onClick={() => setIsMobileMenuOpen((current) => !current)}
+          onClick={() =>
+            setIsMobileMenuOpen(
+              (current) => !current
+            )
+          }
         >
-          {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+          {isMobileMenuOpen ? (
+            <X size={28} />
+          ) : (
+            <Menu size={28} />
+          )}
         </button>
       </div>
 
-      {isMobileMenuOpen && (
+      {isMobileMenuOpen ? (
         <nav className="border-t border-slate-200 bg-white lg:hidden">
           {navItems.map((item) => (
             <NavLink
@@ -108,8 +129,17 @@ const Navbar = () => {
               {item.name}
             </NavLink>
           ))}
+
+          <Link
+            to="/locations"
+            onClick={closeMobileMenu}
+            className="m-4 flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
+          >
+            <CalendarDays size={18} />
+            Book Now
+          </Link>
         </nav>
-      )}
+      ) : null}
     </header>
   );
 };

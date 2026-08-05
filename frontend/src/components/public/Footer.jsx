@@ -1,11 +1,10 @@
 import {
   Building2,
+  ExternalLink,
   Mail,
   MapPin,
   Phone,
-  ExternalLink,
 } from "lucide-react";
-
 import { Link } from "react-router-dom";
 
 const Footer = () => {
@@ -15,15 +14,14 @@ const Footer = () => {
     <footer className="bg-slate-950 text-slate-300">
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
-          {/* Brand / Company */}
           <div className="lg:col-span-2">
             <h2 className="text-2xl font-bold text-white">
               Alishan Accommodation
             </h2>
 
             <p className="mt-4 max-w-xl leading-7 text-slate-400">
-              Comfortable short-term and long-term accommodation
-              solutions in Vilnius, Lithuania.
+              Comfortable short-term and long-term
+              accommodation in Vilnius, Lithuania.
             </p>
 
             <div className="mt-6 space-y-3 text-sm">
@@ -51,14 +49,13 @@ const Footer = () => {
                 />
 
                 <p className="text-slate-400">
-                  Žirmūnų g. 57, Vilnius, 09110 Vilniaus m. sav.,
-                  Lithuania
+                  Žirmūnų g. 57, Vilnius, 09110
+                  Vilniaus m. sav., Lithuania
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Navigation */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-white">
               Explore
@@ -80,13 +77,6 @@ const Footer = () => {
               </Link>
 
               <Link
-                to="/rooms"
-                className="block transition hover:text-white"
-              >
-                Rooms
-              </Link>
-
-              <Link
                 to="/about"
                 className="block transition hover:text-white"
               >
@@ -99,10 +89,16 @@ const Footer = () => {
               >
                 Contact
               </Link>
+
+              <Link
+                to="/locations"
+                className="block transition hover:text-white"
+              >
+                Start Booking
+              </Link>
             </nav>
           </div>
 
-          {/* Contact */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-white">
               Contact
@@ -132,9 +128,7 @@ const Footer = () => {
                   className="shrink-0 text-blue-400"
                 />
 
-                <span>
-                  +370 69400005
-                </span>
+                <span>+370 69400005</span>
               </a>
 
               <a
@@ -148,9 +142,7 @@ const Footer = () => {
                   className="shrink-0 text-blue-400"
                 />
 
-                <span>
-                  MB Ethos 24 Website
-                </span>
+                <span>MB Ethos 24 Website</span>
               </a>
             </div>
           </div>
@@ -159,11 +151,13 @@ const Footer = () => {
         <div className="mt-14 border-t border-slate-800 pt-8">
           <div className="flex flex-col gap-4 text-sm text-slate-500 md:flex-row md:items-center md:justify-between">
             <p>
-              © {currentYear} Alishan Accommodation. All rights reserved.
+              © {currentYear} Alishan
+              Accommodation. All rights reserved.
             </p>
 
             <p>
-              Operated by MB Ethos 24 · Company code 306713846
+              Operated by MB Ethos 24 · Company
+              code 306713846
             </p>
           </div>
         </div>
