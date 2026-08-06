@@ -26,11 +26,9 @@ class DatabaseSeeder extends Seeder
 
             PriceListSeeder::class,
 
-            /*
-             * Enable once the real physical room
-             * inventory has been provided.
-             */
             RoomSeeder::class,
+
+            AdminUserSeeder::class,
         ]);
     }
 }
