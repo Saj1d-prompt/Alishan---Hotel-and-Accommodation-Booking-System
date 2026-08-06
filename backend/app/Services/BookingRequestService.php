@@ -26,8 +26,7 @@ class BookingRequestService
         private readonly
         RoomAvailabilityService
         $roomAvailabilityService
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{
@@ -50,42 +49,36 @@ class BookingRequestService
                 ): array {
                     $property =
                         Property::query()
-                            ->where(
-                                'slug',
-                                $data[
-                                    'property_slug'
-                                ]
-                            )
-                            ->where(
-                                'status',
-                                true
-                            )
-                            ->firstOrFail();
+                        ->where(
+                            'slug',
+                            $data['property_slug']
+                        )
+                        ->where(
+                            'status',
+                            true
+                        )
+                        ->firstOrFail();
 
                     $roomType =
                         RoomType::query()
-                            ->where(
-                                'slug',
-                                $data[
-                                    'room_type_slug'
-                                ]
-                            )
-                            ->where(
-                                'status',
-                                true
-                            )
-                            ->firstOrFail();
+                        ->where(
+                            'slug',
+                            $data['room_type_slug']
+                        )
+                        ->where(
+                            'status',
+                            true
+                        )
+                        ->firstOrFail();
 
                     $occupants =
                         (int)
-                        $data[
-                            'occupants'
-                        ];
+                        $data['occupants'];
 
                     if (
                         $occupants >
                         $roomType
-                            ->default_capacity
+                        ->default_capacity
                     ) {
                         throw ValidationException::withMessages([
                             'occupants' => [
@@ -101,17 +94,17 @@ class BookingRequestService
 
                     $propertyContract =
                         $this
-                            ->resolvePropertyContract(
-                                $property,
-                                $stayTerm
-                            );
+                        ->resolvePropertyContract(
+                            $property,
+                            $stayTerm
+                        );
 
                     $priceList =
                         $this
-                            ->resolvePriceList(
-                                $propertyContract,
-                                $roomType
-                            );
+                        ->resolvePriceList(
+                            $propertyContract,
+                            $roomType
+                        );
 
                     /*
                      * Resolve exactly the same period
@@ -119,34 +112,24 @@ class BookingRequestService
                      */
                     $period =
                         $this
-                            ->roomAvailabilityService
-                            ->resolveStayPeriod(
-                                $propertyContract,
-                                $stayTerm,
-                                $data[
-                                    'check_in_date'
-                                ]
+                        ->roomAvailabilityService
+                        ->resolveStayPeriod(
+                            $propertyContract,
+                            $stayTerm,
+                            $data['check_in_date']
                                 ?? null,
-                                $data[
-                                    'check_out_date'
-                                ]
+                            $data['check_out_date']
                                 ?? null
-                            );
+                        );
 
                     $checkIn =
-                        $period[
-                            'check_in'
-                        ];
+                        $period['check_in'];
 
                     $checkOut =
-                        $period[
-                            'check_out'
-                        ];
+                        $period['check_out'];
 
                     $durationUnits =
-                        $period[
-                            'duration_units'
-                        ];
+                        $period['duration_units'];
 
                     /*
                      * SECURITY / BUSINESS RULE:
@@ -167,9 +150,7 @@ class BookingRequestService
 
                     $passportNumber =
                         PassportNumber::normalize(
-                            $data[
-                                'passport_number'
-                            ]
+                            $data['passport_number']
                         );
 
                     $passportHash =
@@ -179,40 +160,36 @@ class BookingRequestService
 
                     $guest =
                         Guest::query()
-                            ->where(
-                                'document_number_hash',
-                                $passportHash
-                            )
-                            ->first();
+                        ->where(
+                            'document_number_hash',
+                            $passportHash
+                        )
+                        ->first();
 
                     $guestData = [
                         'first_name' =>
-                            $data[
-                                'first_name'
-                            ],
+                        $data['first_name'],
 
                         'last_name' =>
-                            $data[
-                                'last_name'
-                            ],
+                        $data['last_name'],
 
                         'phone' =>
-                            $data['phone'],
+                        $data['phone'],
 
                         'email' =>
-                            $data['email'],
+                        $data['email'],
 
                         'document_type' =>
-                            'passport',
+                        'passport',
 
                         'document_number' =>
-                            $passportNumber,
+                        $passportNumber,
 
                         'document_number_hash' =>
-                            $passportHash,
+                        $passportHash,
 
                         'status' =>
-                            true,
+                        true,
                     ];
 
                     if ($guest) {
@@ -225,11 +202,11 @@ class BookingRequestService
                                 ...$guestData,
 
                                 'uuid' =>
-                                    (string)
-                                    Str::uuid(),
+                                (string)
+                                Str::uuid(),
 
                                 'guest_code' =>
-                                    'GST-'
+                                'GST-'
                                     . (string)
                                     Str::ulid(),
                             ]);
@@ -253,77 +230,78 @@ class BookingRequestService
                     $estimatedTotal =
                         round(
                             $unitPrice
-                            * $occupants
-                            * $durationUnits,
+                                * $occupants
+                                * $durationUnits,
                             2
                         );
 
                     $booking =
                         Booking::create([
                             'uuid' =>
-                                (string)
-                                Str::uuid(),
+                            (string)
+                            Str::uuid(),
 
                             'booking_reference' =>
-                                $this
-                                    ->generateBookingReference(),
+                            $this
+                                ->generateBookingReference(),
 
                             'guest_id' =>
-                                $guest->id,
+                            $guest->id,
 
                             'property_id' =>
-                                $property->id,
+                            $property->id,
 
                             'guest_count' =>
-                                $occupants,
+                            $occupants,
 
                             'check_in_date' =>
-                                $checkIn
-                                    ->toDateString(),
+                            $checkIn
+                                ->toDateString(),
 
                             'check_out_date' =>
-                                $checkOut
-                                    ->toDateString(),
+                            $checkOut
+                                ->toDateString(),
 
                             'estimated_total_amount' =>
-                                $estimatedTotal,
+                            $estimatedTotal,
 
                             /*
                              * Admin decides the
                              * payable amount later.
                              */
                             'total_amount' =>
-                                null,
+                            null,
 
                             'currency' =>
-                                $priceList
-                                    ->currency
-                                    ->value,
+                            $priceList
+                                ->currency
+                                ->value,
 
                             'booking_status' =>
-                                BookingStatus
-                                    ::PENDING_REVIEW
-                                    ->value,
+                            BookingStatus
+                            ::PENDING_REVIEW
+                                ->value,
 
                             'source' =>
-                                'website',
+                            'website',
 
                             'public_access_token_hash' =>
-                                hash(
-                                    'sha256',
-                                    $rawAccessToken
-                                ),
+                            hash(
+                                'sha256',
+                                $rawAccessToken
+                            ),
+
+                            'public_access_token' =>
+                            $rawAccessToken,
 
                             'submitted_at' =>
-                                now(),
+                            now(),
 
                             'privacy_accepted_at' =>
-                                now(),
+                            now(),
 
                             'notes' =>
-                                $data[
-                                    'notes'
-                                ]
+                            $data['notes']
                                 ?? null,
                         ]);
 
@@ -331,55 +309,55 @@ class BookingRequestService
                         ->items()
                         ->create([
                             'room_type_id' =>
-                                $roomType->id,
+                            $roomType->id,
 
                             /*
                              * No physical room is
                              * reserved at this stage.
                              */
                             'room_id' =>
-                                null,
+                            null,
 
                             'bed_id' =>
-                                null,
+                            null,
 
                             'contract_id' =>
-                                $propertyContract
-                                    ->contract_id,
+                            $propertyContract
+                                ->contract_id,
 
                             'price_list_id' =>
-                                $priceList
-                                    ->id,
+                            $priceList
+                                ->id,
 
                             'unit_price' =>
-                                $priceList
-                                    ->price,
+                            $priceList
+                                ->price,
 
                             'billing_unit' =>
-                                $propertyContract
-                                    ->contract
-                                    ->billing_unit,
+                            $propertyContract
+                                ->contract
+                                ->billing_unit,
 
                             'charge_basis' =>
-                                $priceList
-                                    ->charge_basis
-                                    ->value,
+                            $priceList
+                                ->charge_basis
+                                ->value,
 
                             'occupant_count' =>
-                                $occupants,
+                            $occupants,
 
                             'duration_units' =>
-                                $durationUnits,
+                            $durationUnits,
 
                             'subtotal' =>
-                                $estimatedTotal,
+                            $estimatedTotal,
                         ]);
 
                     $extension =
                         strtolower(
                             $passportCopy
                                 ->extension()
-                            ?: 'bin'
+                                ?: 'bin'
                         );
 
                     $fileName =
@@ -414,46 +392,46 @@ class BookingRequestService
 
                     GuestDocument::create([
                         'uuid' =>
-                            (string)
-                            Str::uuid(),
+                        (string)
+                        Str::uuid(),
 
                         'guest_id' =>
-                            $guest->id,
+                        $guest->id,
 
                         'booking_id' =>
-                            $booking->id,
+                        $booking->id,
 
                         'document_type' =>
-                            'passport_copy',
+                        'passport_copy',
 
                         'disk' =>
-                            'local',
+                        'local',
 
                         'file_path' =>
-                            $storedPath,
+                        $storedPath,
 
                         'original_name' =>
-                            $passportCopy
-                                ->getClientOriginalName(),
+                        $passportCopy
+                            ->getClientOriginalName(),
 
                         'mime_type' =>
-                            $passportCopy
-                                ->getMimeType()
+                        $passportCopy
+                            ->getMimeType()
                             ?: 'application/octet-stream',
 
                         'file_size' =>
-                            $passportCopy
-                                ->getSize(),
+                        $passportCopy
+                            ->getSize(),
 
                         'sha256_hash' =>
-                            hash_file(
-                                'sha256',
-                                $passportCopy
-                                    ->getRealPath()
-                            ),
+                        hash_file(
+                            'sha256',
+                            $passportCopy
+                                ->getRealPath()
+                        ),
 
                         'verification_status' =>
-                            'pending',
+                        'pending',
                     ]);
 
                     $booking->load([
@@ -467,10 +445,10 @@ class BookingRequestService
 
                     return [
                         'booking' =>
-                            $booking,
+                        $booking,
 
                         'access_token' =>
-                            $rawAccessToken,
+                        $rawAccessToken,
                     ];
                 }
             );
@@ -500,33 +478,33 @@ class BookingRequestService
     ): PropertyContract {
         $propertyContract =
             PropertyContract::query()
-                ->where(
-                    'property_id',
-                    $property->id
-                )
-                ->where(
-                    'status',
-                    true
-                )
-                ->whereHas(
-                    'contract',
-                    function (
-                        $query
-                    ) use ($stayTerm) {
-                        $query
-                            ->where(
-                                'code',
-                                $stayTerm
-                                    ->contractCode()
-                            )
-                            ->where(
-                                'status',
-                                true
-                            );
-                    }
-                )
-                ->with('contract')
-                ->first();
+            ->where(
+                'property_id',
+                $property->id
+            )
+            ->where(
+                'status',
+                true
+            )
+            ->whereHas(
+                'contract',
+                function (
+                    $query
+                ) use ($stayTerm) {
+                    $query
+                        ->where(
+                            'code',
+                            $stayTerm
+                                ->contractCode()
+                        )
+                        ->where(
+                            'status',
+                            true
+                        );
+                }
+            )
+            ->with('contract')
+            ->first();
 
         if (! $propertyContract) {
             throw ValidationException::withMessages([
@@ -548,43 +526,43 @@ class BookingRequestService
 
         $priceList =
             PriceList::query()
-                ->where(
-                    'property_contract_id',
-                    $propertyContract
-                        ->id
-                )
-                ->where(
-                    'room_type_id',
-                    $roomType->id
-                )
-                ->where(
-                    'status',
-                    true
-                )
-                ->whereDate(
-                    'effective_from',
-                    '<=',
-                    $today
-                )
-                ->where(
-                    function (
-                        $query
-                    ) use ($today) {
-                        $query
-                            ->whereNull(
-                                'effective_until'
-                            )
-                            ->orWhereDate(
-                                'effective_until',
-                                '>=',
-                                $today
-                            );
-                    }
-                )
-                ->latest(
-                    'effective_from'
-                )
-                ->first();
+            ->where(
+                'property_contract_id',
+                $propertyContract
+                    ->id
+            )
+            ->where(
+                'room_type_id',
+                $roomType->id
+            )
+            ->where(
+                'status',
+                true
+            )
+            ->whereDate(
+                'effective_from',
+                '<=',
+                $today
+            )
+            ->where(
+                function (
+                    $query
+                ) use ($today) {
+                    $query
+                        ->whereNull(
+                            'effective_until'
+                        )
+                        ->orWhereDate(
+                            'effective_until',
+                            '>=',
+                            $today
+                        );
+                }
+            )
+            ->latest(
+                'effective_from'
+            )
+            ->first();
 
         if (! $priceList) {
             throw ValidationException::withMessages([
@@ -614,11 +592,11 @@ class BookingRequestService
                 );
         } while (
             Booking::query()
-                ->where(
-                    'booking_reference',
-                    $reference
-                )
-                ->exists()
+            ->where(
+                'booking_reference',
+                $reference
+            )
+            ->exists()
         );
 
         return $reference;

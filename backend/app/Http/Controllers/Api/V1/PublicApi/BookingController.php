@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreBookingRequest;
 use App\Http\Resources\PublicApi\PublicBookingResource;
 use App\Models\Booking;
+use App\Services\BookingNotificationService;
 use App\Services\BookingRequestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,11 @@ class BookingController extends Controller
     public function __construct(
         private readonly
         BookingRequestService
-        $bookingRequestService
+        $bookingRequestService,
+
+        private readonly
+        BookingNotificationService
+        $bookingNotificationService
     ) {
     }
 
@@ -32,6 +37,18 @@ class BookingController extends Controller
                     )
                 );
 
+        $booking =
+            $result['booking'];
+
+        /*
+         * DB transaction has already completed.
+         */
+        $this
+            ->bookingNotificationService
+            ->submitted(
+                $booking
+            );
+
         return response()->json([
             'message' =>
                 'Your booking request has been submitted for review.',
@@ -40,9 +57,7 @@ class BookingController extends Controller
                 'booking' =>
                     (
                         new PublicBookingResource(
-                            $result[
-                                'booking'
-                            ]
+                            $booking
                         )
                     )->resolve(
                         $request
@@ -60,7 +75,8 @@ class BookingController extends Controller
         Request $request,
         string $bookingReference
     ): PublicBookingResource {
-        $token = (string)
+        $token =
+            (string)
             $request->query(
                 'token',
                 ''

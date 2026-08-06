@@ -10,6 +10,7 @@ use App\Http\Resources\Admin\AdminBookingResource;
 use App\Models\Booking;
 use App\Models\PropertyContract;
 use App\Models\Room;
+use App\Services\BookingNotificationService;
 use App\Services\BookingReviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,12 +20,14 @@ use Illuminate\Validation\Rule;
 class BookingController extends Controller
 {
     public function __construct(
-        private readonly
-        BookingReviewService
-        $bookingReviewService
+        private readonly BookingReviewService $bookingReviewService,
+        private readonly BookingNotificationService $bookingNotificationService
     ) {
     }
 
+    /**
+     * List bookings for the Admin dashboard.
+     */
     public function index(
         Request $request
     ): AnonymousResourceCollection {
@@ -65,11 +68,15 @@ class BookingController extends Controller
                 ->when(
                     $validated['status']
                         ?? null,
-                    fn ($query, $status) =>
+                    function (
+                        $query,
+                        string $status
+                    ) {
                         $query->where(
                             'booking_status',
                             $status
-                        )
+                        );
+                    }
                 )
                 ->when(
                     $validated['search']
@@ -135,13 +142,21 @@ class BookingController extends Controller
         );
     }
 
+    /**
+     * Show one booking and calculate the
+     * physical rooms that can currently be
+     * assigned to it.
+     */
     public function show(
+        Request $request,
         Booking $booking
     ): JsonResponse {
         $booking =
             $this
                 ->bookingReviewService
-                ->loadBooking($booking);
+                ->loadBooking(
+                    $booking
+                );
 
         $item =
             $booking
@@ -154,20 +169,17 @@ class BookingController extends Controller
         if (
             $item
             && $booking->booking_status
-                === BookingStatus
-                    ::PENDING_REVIEW
+                === BookingStatus::PENDING_REVIEW
         ) {
             $propertyContract =
                 PropertyContract::query()
                     ->where(
                         'property_id',
-                        $booking
-                            ->property_id
+                        $booking->property_id
                     )
                     ->where(
                         'contract_id',
-                        $item
-                            ->contract_id
+                        $item->contract_id
                     )
                     ->where(
                         'status',
@@ -176,8 +188,21 @@ class BookingController extends Controller
                     ->first();
 
             $allowedFloors =
-                $propertyContract
-                    ?->allowed_floors;
+                collect(
+                    $propertyContract
+                        ?->allowed_floors
+                    ?? []
+                )
+                    ->filter(
+                        fn ($floor) =>
+                            is_numeric($floor)
+                    )
+                    ->map(
+                        fn ($floor) =>
+                            (int) $floor
+                    )
+                    ->values()
+                    ->all();
 
             $blockingStatuses = [
                 BookingStatus
@@ -197,55 +222,57 @@ class BookingController extends Controller
                 Room::query()
                     ->where(
                         'property_id',
-                        $booking
-                            ->property_id
+                        $booking->property_id
                     )
                     ->where(
                         'room_type_id',
-                        $item
-                            ->room_type_id
+                        $item->room_type_id
                     )
                     ->where(
                         'status',
                         true
                     )
+                    ->whereNotNull(
+                        'capacity'
+                    )
                     ->where(
                         'capacity',
                         '>=',
-                        $booking
-                            ->guest_count
+                        $booking->guest_count
                     )
                     ->when(
-                        is_array(
-                            $allowedFloors
-                        )
-                        && count(
+                        count(
                             $allowedFloors
                         ) > 0,
-                        fn ($query) =>
+                        function (
+                            $query
+                        ) use (
+                            $allowedFloors
+                        ) {
                             $query->whereIn(
                                 'floor',
                                 $allowedFloors
-                            )
+                            );
+                        }
                     )
                     ->whereDoesntHave(
                         'bookingItems',
                         function (
-                            $itemQuery
+                            $bookingItemQuery
                         ) use (
                             $booking,
                             $blockingStatuses
                         ) {
-                            $itemQuery
+                            $bookingItemQuery
                                 ->whereHas(
                                     'booking',
                                     function (
-                                        $bookingQuery
+                                        $existingBookingQuery
                                     ) use (
                                         $booking,
                                         $blockingStatuses
                                     ) {
-                                        $bookingQuery
+                                        $existingBookingQuery
                                             ->whereIn(
                                                 'booking_status',
                                                 $blockingStatuses
@@ -266,8 +293,14 @@ class BookingController extends Controller
                                 );
                         }
                     )
+                    ->orderByRaw(
+                        'floor IS NULL'
+                    )
                     ->orderBy(
                         'floor'
+                    )
+                    ->orderBy(
+                        'display_order'
                     )
                     ->orderBy(
                         'room_number'
@@ -288,7 +321,7 @@ class BookingController extends Controller
                             $booking
                         )
                     )->resolve(
-                        request()
+                        $request
                     ),
 
                 'available_rooms' =>
@@ -297,6 +330,13 @@ class BookingController extends Controller
         ]);
     }
 
+    /**
+     * Approve a pending booking.
+     *
+     * BookingReviewService performs the
+     * authoritative transactional availability
+     * check and room assignment.
+     */
     public function approve(
         ApproveBookingRequest $request,
         Booking $booking
@@ -310,11 +350,31 @@ class BookingController extends Controller
                     $request->validated()
                 );
 
+        /*
+         * The approval transaction has already
+         * completed at this point.
+         *
+         * Notify the no-account customer that
+         * payment is now required.
+         *
+         * BookingNotificationService catches mail
+         * problems so an SMTP failure cannot undo
+         * an approved booking.
+         */
+        $this
+            ->bookingNotificationService
+            ->approved(
+                $booking
+            );
+
         return new AdminBookingResource(
             $booking
         );
     }
 
+    /**
+     * Reject a pending booking.
+     */
     public function reject(
         RejectBookingRequest $request,
         Booking $booking
@@ -329,6 +389,16 @@ class BookingController extends Controller
                         'reason'
                     )
                 );
+
+        /*
+         * Notify the customer after the database
+         * transaction has successfully completed.
+         */
+        $this
+            ->bookingNotificationService
+            ->rejected(
+                $booking
+            );
 
         return new AdminBookingResource(
             $booking

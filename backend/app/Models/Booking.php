@@ -30,6 +30,7 @@ class Booking extends Model
         'booking_status',
         'source',
         'public_access_token_hash',
+        'public_access_token',
         'submitted_at',
         'privacy_accepted_at',
         'reviewed_at',
@@ -42,39 +43,48 @@ class Booking extends Model
 
     protected $hidden = [
         'public_access_token_hash',
+        'public_access_token',
     ];
 
     protected $casts = [
         'guest_count' => 'integer',
 
         'check_in_date' => 'date',
-
         'check_out_date' => 'date',
 
         'estimated_total_amount' =>
-            'decimal:2',
+        'decimal:2',
 
-        'total_amount' => 'decimal:2',
+        'total_amount' =>
+        'decimal:2',
 
-        'currency' => Currency::class,
+        'currency' =>
+        Currency::class,
 
         'booking_status' =>
-            BookingStatus::class,
+        BookingStatus::class,
 
-        'submitted_at' => 'datetime',
+        'public_access_token' =>
+        'encrypted',
+
+        'submitted_at' =>
+        'datetime',
 
         'privacy_accepted_at' =>
-            'datetime',
+        'datetime',
 
-        'reviewed_at' => 'datetime',
+        'reviewed_at' =>
+        'datetime',
 
-        'payment_due_at' => 'datetime',
+        'payment_due_at' =>
+        'datetime',
 
-        'confirmed_at' => 'datetime',
+        'confirmed_at' =>
+        'datetime',
 
-        'cancelled_at' => 'datetime',
+        'cancelled_at' =>
+        'datetime',
     ];
-
     public function guest(): BelongsTo
     {
         return $this->belongsTo(
