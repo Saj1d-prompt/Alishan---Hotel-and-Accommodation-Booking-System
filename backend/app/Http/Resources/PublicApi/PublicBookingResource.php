@@ -14,168 +14,172 @@ class PublicBookingResource extends JsonResource
             $this->relationLoaded(
                 'items'
             )
-                ? $this
-                    ->items
-                    ->first()
-                : null;
+            ? $this
+            ->items
+            ->first()
+            : null;
 
         $document =
             $this->relationLoaded(
                 'documents'
             )
-                ? $this
-                    ->documents
-                    ->first()
-                : null;
+            ? $this
+            ->documents
+            ->first()
+            : null;
 
         return [
             'booking_reference' =>
-                $this
-                    ->booking_reference,
+            $this
+                ->booking_reference,
 
             'status' =>
-                $this
-                    ->booking_status
-                    ?->value,
+            $this
+                ->booking_status
+                ?->value,
 
             'status_label' =>
-                str(
-                    $this
-                        ->booking_status
-                        ?->value
+            str(
+                $this
+                    ->booking_status
+                    ?->value
                     ?? ''
+            )
+                ->replace(
+                    '_',
+                    ' '
                 )
-                    ->replace(
-                        '_',
-                        ' '
-                    )
-                    ->title()
-                    ->toString(),
+                ->title()
+                ->toString(),
 
             'submitted_at' =>
-                $this
-                    ->submitted_at
-                    ?->toISOString(),
+            $this
+                ->submitted_at
+                ?->toISOString(),
 
             'applicant' => [
                 'full_name' =>
-                    $this
-                        ->guest
-                        ?->full_name,
+                $this
+                    ->guest
+                    ?->full_name,
 
                 'email' =>
-                    $this
-                        ->guest
-                        ?->email,
+                $this
+                    ->guest
+                    ?->email,
 
                 'phone' =>
-                    $this
-                        ->guest
-                        ?->phone,
+                $this
+                    ->guest
+                    ?->phone,
             ],
 
             'property' => [
                 'name' =>
-                    $this
-                        ->property
-                        ?->name,
+                $this
+                    ->property
+                    ?->name,
 
                 'slug' =>
-                    $this
-                        ->property
-                        ?->slug,
+                $this
+                    ->property
+                    ?->slug,
 
                 'city' =>
-                    $this
-                        ->property
-                        ?->city
-                        ?->name,
+                $this
+                    ->property
+                    ?->city
+                    ?->name,
             ],
 
             'stay' => [
                 'check_in_date' =>
-                    $this
-                        ->check_in_date
-                        ?->toDateString(),
+                $this
+                    ->check_in_date
+                    ?->toDateString(),
 
                 'check_out_date' =>
-                    $this
-                        ->check_out_date
-                        ?->toDateString(),
+                $this
+                    ->check_out_date
+                    ?->toDateString(),
 
                 'occupants' =>
-                    $this->guest_count,
+                $this->guest_count,
 
                 'room_type' =>
-                    $item
-                        ?->roomType
-                        ?->name,
+                $item
+                    ?->roomType
+                    ?->name,
 
                 'term' =>
-                    $item
-                        ?->contract
-                        ?->name,
+                $item
+                    ?->contract
+                    ?->name,
 
                 'billing_unit' =>
-                    $item
-                        ?->billing_unit,
+                $item
+                    ?->billing_unit,
 
                 'duration_units' =>
-                    $item
-                        ?->duration_units,
+                $item
+                    ?->duration_units,
             ],
 
             'pricing' => [
                 'unit_price' =>
-                    $item
-                        ?->unit_price,
+                $item
+                    ?->unit_price,
 
                 'charge_basis' =>
-                    $item
-                        ?->charge_basis,
+                $item
+                    ?->charge_basis,
 
                 'estimated_total_amount' =>
-                    $this
-                        ->estimated_total_amount,
+                $this
+                    ->estimated_total_amount,
 
                 'payable_amount' =>
-                    $this
-                        ->total_amount,
+                $this
+                    ->total_amount,
 
                 'currency' =>
-                    $this
-                        ->currency
-                        ?->value,
+                $this
+                    ->currency
+                    ?->value,
             ],
 
             'passport_proof' => [
                 'status' =>
-                    $document
-                        ?->verification_status,
+                $document
+                    ?->verification_status,
             ],
 
             'review' => [
                 'reviewed_at' =>
-                    $this
-                        ->reviewed_at
-                        ?->toISOString(),
+                $this
+                    ->reviewed_at
+                    ?->toISOString(),
 
                 'rejection_reason' =>
-                    $this
-                        ->rejection_reason,
+                $this
+                    ->rejection_reason,
             ],
 
             'payment' => [
                 'due_at' =>
-                    $this
-                        ->payment_due_at
-                        ?->toISOString(),
+                $this
+                    ->payment_due_at
+                    ?->toISOString(),
 
                 'confirmed_at' =>
-                    $this
-                        ->confirmed_at
-                        ?->toISOString(),
+                $this
+                    ->confirmed_at
+                    ?->toISOString(),
             ],
+            'financial' =>
+            $this
+                ->resource
+                ->financialSummary(),
         ];
     }
 }

@@ -15,102 +15,86 @@ export async function getAdminBookings(
 }
 
 export async function getAdminBooking(
-  uuid,
+  bookingKey,
 ) {
   const response =
     await apiClient.get(
-      `/admin/bookings/${uuid}`,
+      `/admin/bookings/${encodeURIComponent(
+        bookingKey,
+      )}`,
     );
 
   return response.data.data;
 }
 
-export async function approveAdminBooking(
-  uuid,
+export async function approveBooking(
+  bookingKey,
   payload,
 ) {
   const response =
     await apiClient.post(
-      `/admin/bookings/${uuid}/approve`,
+      `/admin/bookings/${encodeURIComponent(
+        bookingKey,
+      )}/approve`,
       payload,
     );
 
   return response.data.data;
 }
 
-export async function rejectAdminBooking(
-  uuid,
-  reason,
+export async function rejectBooking(
+  bookingKey,
+  payload,
 ) {
   const response =
     await apiClient.post(
-      `/admin/bookings/${uuid}/reject`,
-      {
-        reason,
-      },
+      `/admin/bookings/${encodeURIComponent(
+        bookingKey,
+      )}/reject`,
+      payload,
     );
 
   return response.data.data;
 }
 
 export async function verifyGuestDocument(
-  uuid,
+  documentKey,
 ) {
   const response =
     await apiClient.post(
-      `/admin/guest-documents/${uuid}/verify`,
+      `/admin/guest-documents/${encodeURIComponent(
+        documentKey,
+      )}/verify`,
     );
 
   return response.data.data;
 }
 
 export async function rejectGuestDocument(
-  uuid,
-  reason,
+  documentKey,
+  payload,
 ) {
   const response =
     await apiClient.post(
-      `/admin/guest-documents/${uuid}/reject`,
-      {
-        reason,
-      },
+      `/admin/guest-documents/${encodeURIComponent(
+        documentKey,
+      )}/reject`,
+      payload,
     );
 
   return response.data.data;
 }
 
 export async function downloadGuestDocument(
-  uuid,
-  filename,
+  documentKey,
 ) {
-  const response =
-    await apiClient.get(
-      `/admin/guest-documents/${uuid}/download`,
-      {
-        responseType: "blob",
-      },
-    );
-
-  const url =
-    URL.createObjectURL(
-      response.data,
-    );
-
-  const link =
-    document.createElement("a");
-
-  link.href = url;
-
-  link.download =
-    filename
-    || "passport-document";
-
-  document.body.appendChild(
-    link,
+  return apiClient.get(
+    `/admin/guest-documents/${encodeURIComponent(
+      documentKey,
+    )}/download`,
+    {
+      responseType:
+        "blob",
+    },
   );
-
-  link.click();
-  link.remove();
-
-  URL.revokeObjectURL(url);
 }

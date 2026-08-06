@@ -4,268 +4,355 @@ namespace App\Services;
 
 use App\Enums\BookingStatus;
 use App\Models\Booking;
-use App\Models\BookingItem;
 use App\Models\PropertyContract;
 use App\Models\Room;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class BookingReviewService
 {
+    public function __construct(
+        private readonly
+        BookingPaymentPlanService
+        $bookingPaymentPlanService
+    ) {
+    }
+
+    public function loadBooking(
+        Booking $booking
+    ): Booking {
+        return $booking->load([
+            'guest',
+
+            'property.city',
+
+            'items.roomType',
+
+            'items.room',
+
+            'items.contract',
+
+            'items.priceList',
+
+            'documents',
+
+            'reviewedBy',
+
+            'paymentInstallments',
+        ]);
+    }
+
     public function approve(
         Booking $booking,
         User $admin,
         array $data
     ): Booking {
-        return DB::transaction(
-            function () use (
-                $booking,
-                $admin,
-                $data
-            ) {
-                $booking = Booking::query()
-                    ->whereKey(
-                        $booking->id
-                    )
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                if (
-                    $booking->booking_status
-                    !== BookingStatus::PENDING_REVIEW
+        $approvedBooking =
+            DB::transaction(
+                function () use (
+                    $booking,
+                    $admin,
+                    $data
                 ) {
-                    throw ValidationException::withMessages([
-                        'booking' => [
-                            'Only pending booking requests can be approved.',
-                        ],
-                    ]);
-                }
+                    $lockedBooking =
+                        Booking::query()
+                            ->whereKey(
+                                $booking
+                                    ->getKey()
+                            )
+                            ->lockForUpdate()
+                            ->firstOrFail();
 
-                $item = BookingItem::query()
-                    ->where(
-                        'booking_id',
-                        $booking->id
-                    )
-                    ->with([
-                        'roomType',
-                        'contract',
-                    ])
-                    ->lockForUpdate()
-                    ->firstOrFail();
+                    $bookingStatus =
+                        $lockedBooking
+                            ->booking_status
+                        instanceof BookingStatus
+                            ? $lockedBooking
+                                ->booking_status
+                                ->value
+                            : (string)
+                            $lockedBooking
+                                ->booking_status;
 
-                $passportVerified =
-                    $booking
-                        ->documents()
-                        ->where(
-                            'document_type',
-                            'passport_copy'
+                    if (
+                        $bookingStatus
+                        !== BookingStatus
+                            ::PENDING_REVIEW
+                            ->value
+                    ) {
+                        throw ValidationException::withMessages([
+                            'booking' => [
+                                'Only pending bookings can be approved.',
+                            ],
+                        ]);
+                    }
+
+                    $item =
+                        $lockedBooking
+                            ->items()
+                            ->lockForUpdate()
+                            ->first();
+
+                    if (! $item) {
+                        throw ValidationException::withMessages([
+                            'booking' => [
+                                'This booking does not contain an accommodation item.',
+                            ],
+                        ]);
+                    }
+
+                    $this
+                        ->assertPassportVerified(
+                            $lockedBooking
+                        );
+
+                    $room =
+                        Room::query()
+                            ->where(
+                                'uuid',
+                                $data[
+                                    'room_uuid'
+                                ]
+                            )
+                            ->lockForUpdate()
+                            ->first();
+
+                    if (! $room) {
+                        throw ValidationException::withMessages([
+                            'room_uuid' => [
+                                'The selected physical room could not be found.',
+                            ],
+                        ]);
+                    }
+
+                    $occupants =
+                        (int) (
+                            $item
+                                ->occupants
+                            ??
+                            $lockedBooking
+                                ->guest_count
+                            ??
+                            1
+                        );
+
+                    if (
+                        ! $room->status
+                        ||
+                        (int)
+                        $room
+                            ->property_id
+                        !==
+                        (int)
+                        $lockedBooking
+                            ->property_id
+                        ||
+                        (int)
+                        $room
+                            ->room_type_id
+                        !==
+                        (int)
+                        $item
+                            ->room_type_id
+                        ||
+                        ! $room
+                            ->capacity
+                        ||
+                        (int)
+                        $room
+                            ->capacity
+                        < $occupants
+                    ) {
+                        throw ValidationException::withMessages([
+                            'room_uuid' => [
+                                'The selected physical room does not match this booking request.',
+                            ],
+                        ]);
+                    }
+
+                    $propertyContract =
+                        PropertyContract::query()
+                            ->where(
+                                'property_id',
+                                $lockedBooking
+                                    ->property_id
+                            )
+                            ->where(
+                                'contract_id',
+                                $item
+                                    ->contract_id
+                            )
+                            ->where(
+                                'status',
+                                true
+                            )
+                            ->first();
+
+                    if (
+                        ! $propertyContract
+                    ) {
+                        throw ValidationException::withMessages([
+                            'room_uuid' => [
+                                'The property contract for this booking is not active.',
+                            ],
+                        ]);
+                    }
+
+                    $allowedFloors =
+                        $propertyContract
+                            ->allowed_floors
+                        ?? [];
+
+                    if (
+                        is_string(
+                            $allowedFloors
                         )
-                        ->where(
-                            'verification_status',
-                            'verified'
+                    ) {
+                        $allowedFloors =
+                            json_decode(
+                                $allowedFloors,
+                                true
+                            )
+                            ?: [];
+                    }
+
+                    $allowedFloors =
+                        collect(
+                            $allowedFloors
                         )
-                        ->exists();
+                            ->filter(
+                                fn ($floor) =>
+                                    is_numeric(
+                                        $floor
+                                    )
+                            )
+                            ->map(
+                                fn ($floor) =>
+                                    (int)
+                                    $floor
+                            )
+                            ->values()
+                            ->all();
 
-                if (! $passportVerified) {
-                    throw ValidationException::withMessages([
-                        'passport' => [
-                            'The passport proof must be verified before approving this booking.',
-                        ],
-                    ]);
-                }
-
-                $room = Room::query()
-                    ->where(
-                        'uuid',
-                        $data['room_uuid']
-                    )
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                if (! $room->status) {
-                    throw ValidationException::withMessages([
-                        'room_uuid' => [
-                            'The selected physical room is not active.',
-                        ],
-                    ]);
-                }
-
-                if (
-                    $room->property_id
-                    !== $booking->property_id
-                ) {
-                    throw ValidationException::withMessages([
-                        'room_uuid' => [
-                            'The selected room belongs to another property.',
-                        ],
-                    ]);
-                }
-
-                if (
-                    $room->room_type_id
-                    !== $item->room_type_id
-                ) {
-                    throw ValidationException::withMessages([
-                        'room_uuid' => [
-                            'The selected room does not match the requested room type.',
-                        ],
-                    ]);
-                }
-
-                if (
-                    $room->capacity === null
-                    || $room->capacity
-                        < $booking->guest_count
-                ) {
-                    throw ValidationException::withMessages([
-                        'room_uuid' => [
-                            'The selected room cannot accommodate all occupants.',
-                        ],
-                    ]);
-                }
-
-                $propertyContract =
-                    PropertyContract::query()
-                        ->where(
-                            'property_id',
-                            $booking->property_id
-                        )
-                        ->where(
-                            'contract_id',
-                            $item->contract_id
-                        )
-                        ->where(
-                            'status',
-                            true
-                        )
-                        ->first();
-
-                if (! $propertyContract) {
-                    throw ValidationException::withMessages([
-                        'booking' => [
-                            'The property contract for this booking is no longer active.',
-                        ],
-                    ]);
-                }
-
-                $allowedFloors =
-                    $propertyContract
-                        ->allowed_floors;
-
-                if (
-                    is_array($allowedFloors)
-                    && count($allowedFloors) > 0
-                    && (
-                        $room->floor === null
-                        || ! in_array(
+                    if (
+                        count(
+                            $allowedFloors
+                        ) > 0
+                        &&
+                        ! in_array(
+                            (int)
                             $room->floor,
                             $allowedFloors,
                             true
                         )
-                    )
-                ) {
-                    throw ValidationException::withMessages([
-                        'room_uuid' => [
-                            'The selected room is on a floor that is not allowed for this accommodation term.',
-                        ],
-                    ]);
-                }
+                    ) {
+                        throw ValidationException::withMessages([
+                            'room_uuid' => [
+                                'The selected room is not on a permitted floor for this booking term.',
+                            ],
+                        ]);
+                    }
 
-                $blockingStatuses = [
-                    BookingStatus::AWAITING_PAYMENT
-                        ->value,
-
-                    BookingStatus::CONFIRMED
-                        ->value,
-
-                    BookingStatus::CHECKED_IN
-                        ->value,
-                ];
-
-                $roomIsOccupied =
-                    BookingItem::query()
-                        ->where(
-                            'room_id',
-                            $room->id
-                        )
-                        ->where(
-                            'booking_id',
-                            '!=',
-                            $booking->id
-                        )
-                        ->whereHas(
-                            'booking',
-                            function (
-                                $query
-                            ) use (
-                                $booking,
-                                $blockingStatuses
-                            ) {
-                                $query
-                                    ->whereIn(
-                                        'booking_status',
-                                        $blockingStatuses
-                                    )
-                                    ->whereDate(
-                                        'check_in_date',
-                                        '<',
-                                        $booking
-                                            ->check_out_date
-                                    )
-                                    ->whereDate(
-                                        'check_out_date',
-                                        '>',
-                                        $booking
-                                            ->check_in_date
-                                    );
-                            }
-                        )
-                        ->exists();
-
-                if ($roomIsOccupied) {
-                    throw ValidationException::withMessages([
-                        'room_uuid' => [
-                            'The selected room is already assigned for an overlapping stay.',
-                        ],
-                    ]);
-                }
-
-                $item->update([
-                    'room_id' =>
-                        $room->id,
-                ]);
-
-                $booking->update([
-                    'total_amount' =>
-                        $data[
-                            'payable_amount'
-                        ],
-
-                    'booking_status' =>
+                    $blockingStatuses = [
                         BookingStatus
                             ::AWAITING_PAYMENT
                             ->value,
 
-                    'reviewed_by_user_id' =>
-                        $admin->id,
+                        BookingStatus
+                            ::CONFIRMED
+                            ->value,
 
-                    'reviewed_at' =>
-                        now(),
+                        BookingStatus
+                            ::CHECKED_IN
+                            ->value,
+                    ];
 
-                    'payment_due_at' =>
-                        $data[
-                            'payment_due_at'
-                        ],
+                    $hasConflict =
+                        $room
+                            ->bookingItems()
+                            ->whereHas(
+                                'booking',
+                                function (
+                                    $query
+                                ) use (
+                                    $lockedBooking,
+                                    $blockingStatuses
+                                ) {
+                                    $query
+                                        ->whereKeyNot(
+                                            $lockedBooking
+                                                ->getKey()
+                                        )
+                                        ->whereIn(
+                                            'booking_status',
+                                            $blockingStatuses
+                                        )
+                                        ->whereDate(
+                                            'check_in_date',
+                                            '<',
+                                            $lockedBooking
+                                                ->check_out_date
+                                        )
+                                        ->whereDate(
+                                            'check_out_date',
+                                            '>',
+                                            $lockedBooking
+                                                ->check_in_date
+                                        );
+                                }
+                            )
+                            ->exists();
 
-                    'rejection_reason' =>
-                        null,
-                ]);
+                    if ($hasConflict) {
+                        throw ValidationException::withMessages([
+                            'room_uuid' => [
+                                'The selected room is no longer available for these dates.',
+                            ],
+                        ]);
+                    }
 
-                return $this->loadBooking(
-                    $booking->fresh()
-                );
-            }
+                    $item->forceFill([
+                        'room_id' =>
+                            $room->id,
+                    ])->save();
+
+                    $lockedBooking
+                        ->forceFill([
+                            'booking_status' =>
+                                BookingStatus
+                                    ::AWAITING_PAYMENT,
+
+                            'reviewed_by_user_id' =>
+                                $admin->id,
+
+                            'reviewed_at' =>
+                                now(),
+
+                            'rejection_reason' =>
+                                null,
+                        ])
+                        ->save();
+
+                    /*
+                     * Create the financial plan in
+                     * the SAME transaction.
+                     */
+                    $this
+                        ->bookingPaymentPlanService
+                        ->createForApproval(
+                            $lockedBooking,
+                            $data
+                        );
+
+                    return $lockedBooking;
+                }
+            );
+
+        return $this->loadBooking(
+            $approvedBooking
+                ->refresh()
         );
     }
 
@@ -274,74 +361,130 @@ class BookingReviewService
         User $admin,
         string $reason
     ): Booking {
-        return DB::transaction(
-            function () use (
-                $booking,
-                $admin,
-                $reason
-            ) {
-                $booking = Booking::query()
-                    ->whereKey(
-                        $booking->id
-                    )
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                if (
-                    $booking->booking_status
-                    !== BookingStatus::PENDING_REVIEW
+        $rejectedBooking =
+            DB::transaction(
+                function () use (
+                    $booking,
+                    $admin,
+                    $reason
                 ) {
-                    throw ValidationException::withMessages([
-                        'booking' => [
-                            'Only pending booking requests can be rejected.',
-                        ],
-                    ]);
+                    $lockedBooking =
+                        Booking::query()
+                            ->whereKey(
+                                $booking
+                                    ->getKey()
+                            )
+                            ->lockForUpdate()
+                            ->firstOrFail();
+
+                    $bookingStatus =
+                        $lockedBooking
+                            ->booking_status
+                        instanceof BookingStatus
+                            ? $lockedBooking
+                                ->booking_status
+                                ->value
+                            : (string)
+                            $lockedBooking
+                                ->booking_status;
+
+                    if (
+                        $bookingStatus
+                        !== BookingStatus
+                            ::PENDING_REVIEW
+                            ->value
+                    ) {
+                        throw ValidationException::withMessages([
+                            'booking' => [
+                                'Only pending bookings can be rejected.',
+                            ],
+                        ]);
+                    }
+
+                    $lockedBooking
+                        ->paymentInstallments()
+                        ->delete();
+
+                    $lockedBooking
+                        ->forceFill([
+                            'booking_status' =>
+                                BookingStatus
+                                    ::REJECTED,
+
+                            'reviewed_by_user_id' =>
+                                $admin->id,
+
+                            'reviewed_at' =>
+                                now(),
+
+                            'rejection_reason' =>
+                                $reason,
+
+                            'payment_due_at' =>
+                                null,
+                        ])
+                        ->save();
+
+                    return $lockedBooking;
                 }
+            );
 
-                $booking->update([
-                    'booking_status' =>
-                        BookingStatus
-                            ::REJECTED
-                            ->value,
-
-                    'reviewed_by_user_id' =>
-                        $admin->id,
-
-                    'reviewed_at' =>
-                        now(),
-
-                    'rejection_reason' =>
-                        $reason,
-
-                    'payment_due_at' =>
-                        null,
-
-                    'total_amount' =>
-                        null,
-                ]);
-
-                return $this->loadBooking(
-                    $booking->fresh()
-                );
-            }
+        return $this->loadBooking(
+            $rejectedBooking
+                ->refresh()
         );
     }
 
-    public function loadBooking(
+    private function assertPassportVerified(
         Booking $booking
-    ): Booking {
-        return $booking->load([
-            'guest',
-            'property.city',
+    ): void {
+        $documentsRelation =
+            $booking
+                ->documents();
 
-            'items.roomType',
-            'items.room',
-            'items.contract',
-            'items.priceList',
+        $documentTable =
+            $documentsRelation
+                ->getRelated()
+                ->getTable();
 
-            'documents',
+        if (
+            Schema::hasColumn(
+                $documentTable,
+                'verification_status'
+            )
+        ) {
+            $verificationColumn =
+                'verification_status';
+        } elseif (
+            Schema::hasColumn(
+                $documentTable,
+                'status'
+            )
+        ) {
+            $verificationColumn =
+                'status';
+        } else {
+            throw ValidationException::withMessages([
+                'passport' => [
+                    'Passport verification status is not configured correctly.',
+                ],
+            ]);
+        }
 
-            'reviewedBy',
-        ]);
+        $verified =
+            $documentsRelation
+                ->where(
+                    $verificationColumn,
+                    'verified'
+                )
+                ->exists();
+
+        if (! $verified) {
+            throw ValidationException::withMessages([
+                'passport' => [
+                    'The passport proof must be verified before approving the booking.',
+                ],
+            ]);
+        }
     }
 }

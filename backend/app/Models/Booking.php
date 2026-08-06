@@ -135,4 +135,321 @@ class Booking extends Model
             Payment::class
         );
     }
+    public function paymentInstallments(): HasMany
+    {
+        return $this
+            ->hasMany(
+                PaymentInstallment::class
+            )
+            ->orderBy(
+                'installment_number'
+            );
+    }
+
+    public function financialSummary(): array
+    {
+        $installments =
+            $this->relationLoaded(
+                'paymentInstallments'
+            )
+            ? $this
+            ->paymentInstallments
+            : $this
+            ->paymentInstallments()
+            ->get();
+
+        $bookingTotal =
+            round(
+                (float) (
+                    $this->total_amount
+                    ?? $this
+                    ->estimated_total_amount
+                    ?? 0
+                ),
+                2
+            );
+
+        $paidAmount =
+            round(
+                (float)
+                $installments->sum(
+                    fn(
+                        PaymentInstallment
+                        $installment
+                    ) =>
+                    (float)
+                    $installment
+                        ->paid_amount
+                ),
+                2
+            );
+
+        $outstandingAmount =
+            max(
+                round(
+                    $bookingTotal
+                        - $paidAmount,
+                    2
+                ),
+                0
+            );
+
+        $pendingInstallments =
+            $installments
+            ->filter(
+                function (
+                    PaymentInstallment
+                    $installment
+                ) {
+                    $remaining =
+                        (float)
+                        $installment
+                            ->amount
+                        -
+                        (float)
+                        $installment
+                            ->paid_amount;
+
+                    return
+                        $installment
+                        ->status
+                        === 'pending'
+                        && $remaining > 0.009;
+                }
+            )
+            ->sortBy(
+                'installment_number'
+            )
+            ->values();
+
+        $hasOverdueInstallment =
+            $pendingInstallments
+            ->contains(
+                fn(
+                    PaymentInstallment
+                    $installment
+                ) =>
+                $installment
+                    ->due_at
+                    &&
+                    $installment
+                    ->due_at
+                    ->isPast()
+            );
+
+        if (
+            $bookingTotal > 0
+            && $outstandingAmount <= 0.009
+        ) {
+            $paymentStatus =
+                'paid';
+        } elseif (
+            $hasOverdueInstallment
+        ) {
+            $paymentStatus =
+                'overdue';
+        } elseif (
+            $paidAmount > 0
+        ) {
+            $paymentStatus =
+                'partially_paid';
+        } else {
+            $paymentStatus =
+                'unpaid';
+        }
+
+        $nextInstallment =
+            $pendingInstallments
+            ->first();
+
+        $nextInstallmentData =
+            null;
+
+        if ($nextInstallment) {
+            $amountRemaining =
+                max(
+                    round(
+                        (float)
+                        $nextInstallment
+                            ->amount
+                            -
+                            (float)
+                            $nextInstallment
+                                ->paid_amount,
+                        2
+                    ),
+                    0
+                );
+
+            $nextInstallmentData = [
+                'uuid' =>
+                $nextInstallment
+                    ->uuid,
+
+                'installment_number' =>
+                $nextInstallment
+                    ->installment_number,
+
+                'label' =>
+                $nextInstallment
+                    ->label,
+
+                'amount' =>
+                (string)
+                $nextInstallment
+                    ->amount,
+
+                'paid_amount' =>
+                (string)
+                $nextInstallment
+                    ->paid_amount,
+
+                'amount_remaining' =>
+                number_format(
+                    $amountRemaining,
+                    2,
+                    '.',
+                    ''
+                ),
+
+                'due_at' =>
+                $nextInstallment
+                    ->due_at
+                    ?->toIso8601String(),
+
+                'status' =>
+                $nextInstallment
+                    ->status,
+            ];
+        }
+
+        $remainingAfterNextPayment =
+            $outstandingAmount;
+
+        if ($nextInstallmentData) {
+            $remainingAfterNextPayment =
+                max(
+                    round(
+                        $outstandingAmount
+                            -
+                            (float)
+                            $nextInstallmentData['amount_remaining'],
+                        2
+                    ),
+                    0
+                );
+        }
+
+        return [
+            'booking_total_amount' =>
+            number_format(
+                $bookingTotal,
+                2,
+                '.',
+                ''
+            ),
+
+            'paid_amount' =>
+            number_format(
+                $paidAmount,
+                2,
+                '.',
+                ''
+            ),
+
+            'outstanding_amount' =>
+            number_format(
+                $outstandingAmount,
+                2,
+                '.',
+                ''
+            ),
+
+            'remaining_after_next_payment' =>
+            number_format(
+                $remainingAfterNextPayment,
+                2,
+                '.',
+                ''
+            ),
+
+            'payment_status' =>
+            $paymentStatus,
+
+            'next_installment' =>
+            $nextInstallmentData,
+
+            'installments' =>
+            $installments
+                ->map(
+                    function (
+                        PaymentInstallment
+                        $installment
+                    ) {
+                        $remaining =
+                            max(
+                                round(
+                                    (float)
+                                    $installment
+                                        ->amount
+                                        -
+                                        (float)
+                                        $installment
+                                            ->paid_amount,
+                                    2
+                                ),
+                                0
+                            );
+
+                        return [
+                            'uuid' =>
+                            $installment
+                                ->uuid,
+
+                            'installment_number' =>
+                            $installment
+                                ->installment_number,
+
+                            'label' =>
+                            $installment
+                                ->label,
+
+                            'amount' =>
+                            (string)
+                            $installment
+                                ->amount,
+
+                            'paid_amount' =>
+                            (string)
+                            $installment
+                                ->paid_amount,
+
+                            'amount_remaining' =>
+                            number_format(
+                                $remaining,
+                                2,
+                                '.',
+                                ''
+                            ),
+
+                            'due_at' =>
+                            $installment
+                                ->due_at
+                                ?->toIso8601String(),
+
+                            'status' =>
+                            $installment
+                                ->status,
+
+                            'paid_at' =>
+                            $installment
+                                ->paid_at
+                                ?->toIso8601String(),
+                        ];
+                    }
+                )
+                ->values()
+                ->all(),
+        ];
+    }
 }

@@ -34,70 +34,161 @@ class BookingApprovedNotification extends Notification implements ShouldQueue
             'guest',
             'property',
             'items.roomType',
+            'paymentInstallments',
         ]);
 
         $item =
-            $this->booking
+            $this
+                ->booking
                 ->items
                 ->first();
 
-        $amount =
-            $this->formatAmount();
-
-        $deadline =
-            $this->formatDeadline();
-
-        return (new MailMessage)
-            ->subject(
-                'Payment required for your Alishan booking'
-            )
-            ->greeting(
-                'Hello '
-                . $this->booking
-                    ->guest
-                    ->full_name
-                . ','
-            )
-            ->line(
-                'Your accommodation booking request has been approved.'
-            )
-            ->line(
-                'Booking reference: '
-                . $this->booking
-                    ->booking_reference
-            )
-            ->line(
-                'Location: '
-                . $this->booking
-                    ->property
-                    ->name
-            )
-            ->line(
-                'Room type: '
-                . (
-                    $item
-                        ?->roomType
-                        ?->name
-                    ?? 'Selected room type'
+        $installments =
+            $this
+                ->booking
+                ->paymentInstallments
+                ->sortBy(
+                    'installment_number'
                 )
-            )
+                ->values();
+
+        $firstInstallment =
+            $installments
+                ->first();
+
+        $secondInstallment =
+            $installments
+                ->get(1);
+
+        $bookingTotal =
+            (float)
+            $this
+                ->booking
+                ->total_amount;
+
+        $amountDueNow =
+            (float) (
+                $firstInstallment
+                    ?->amount
+                ?? $bookingTotal
+            );
+
+        $remainingAfterPayment =
+            max(
+                $bookingTotal
+                - $amountDueNow,
+                0
+            );
+
+        $message =
+            (new MailMessage)
+                ->subject(
+                    'Payment required for your Alishan booking'
+                )
+                ->greeting(
+                    'Hello '
+                    .
+                    $this
+                        ->booking
+                        ->guest
+                        ->full_name
+                    .
+                    ','
+                )
+                ->line(
+                    'Your accommodation booking request has been approved.'
+                )
+                ->line(
+                    'Booking reference: '
+                    .
+                    $this
+                        ->booking
+                        ->booking_reference
+                )
+                ->line(
+                    'Location: '
+                    .
+                    $this
+                        ->booking
+                        ->property
+                        ->name
+                )
+                ->line(
+                    'Room type: '
+                    .
+                    (
+                        $item
+                            ?->roomType
+                            ?->name
+                        ??
+                        'Selected room type'
+                    )
+                )
+                ->line(
+                    'Total accommodation amount: '
+                    .
+                    $this->formatAmount(
+                        $bookingTotal
+                    )
+                )
+                ->line(
+                    'Payment required now: '
+                    .
+                    $this->formatAmount(
+                        $amountDueNow
+                    )
+                );
+
+        if (
+            $firstInstallment
+                ?->due_at
+        ) {
+            $message->line(
+                'First payment deadline: '
+                .
+                $this->formatDeadline(
+                    $firstInstallment
+                        ->due_at
+                )
+            );
+        }
+
+        if (
+            $remainingAfterPayment > 0
+        ) {
+            $message->line(
+                'Remaining balance after this payment: '
+                .
+                $this->formatAmount(
+                    $remainingAfterPayment
+                )
+            );
+
+            if (
+                $secondInstallment
+                    ?->due_at
+            ) {
+                $message->line(
+                    'Remaining balance due: '
+                    .
+                    $this->formatDeadline(
+                        $secondInstallment
+                            ->due_at
+                    )
+                );
+            }
+        }
+
+        return $message
             ->line(
-                'Amount due: '
-                . $amount
-            )
-            ->line(
-                'Payment deadline: '
-                . $deadline
-            )
-            ->line(
-                'Open your secure booking page to review the approved booking and complete payment.'
+                'Open your secure booking page to review the approved booking and complete the required payment.'
             )
             ->action(
                 'View Booking & Pay',
                 $this->statusUrl
             )
             ->line(
-                'Your booking is not confirmed until the required payment has been successfully received.'
+                'Your booking will only be confirmed after the required initial payment has been successfully received.'
             )
             ->line(
                 'For security, passport information is never included in email messages.'
@@ -107,50 +198,32 @@ class BookingApprovedNotification extends Notification implements ShouldQueue
             );
     }
 
-    private function formatAmount(): string
-    {
-        $amount =
+    private function formatAmount(
+        float $amount
+    ): string {
+        return '€'
+            .
             number_format(
-                (float)
-                $this->booking
-                    ->total_amount,
+                $amount,
                 2,
                 '.',
                 ''
             );
-
-        $currency =
-            $this->booking
-                ->currency
-                ?->value
-            ?? 'EUR';
-
-        if ($currency === 'EUR') {
-            return "€{$amount}";
-        }
-
-        return "{$amount} {$currency}";
     }
 
-    private function formatDeadline(): string
-    {
-        if (
-            ! $this->booking
-                ->payment_due_at
-        ) {
-            return 'Please check your booking page.';
-        }
-
-        return $this->booking
-            ->payment_due_at
+    private function formatDeadline(
+        $date
+    ): string {
+        return $date
             ->copy()
             ->timezone(
                 config(
-                    'alishan.timezone'
+                    'alishan.timezone',
+                    'Europe/Vilnius'
                 )
             )
             ->format(
-                'd M Y, H:i'
+                'd M Y'
             );
     }
 }

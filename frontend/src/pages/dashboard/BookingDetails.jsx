@@ -1,15 +1,25 @@
 import {
+  AlertCircle,
   ArrowLeft,
+  BedDouble,
+  CalendarDays,
   CheckCircle2,
   Download,
+  FileCheck2,
   Loader2,
+  Mail,
+  MapPin,
+  Phone,
+  RefreshCw,
   ShieldCheck,
+  UserRound,
+  Users,
   XCircle,
 } from "lucide-react";
 
 import {
-  useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -18,34 +28,258 @@ import {
   useParams,
 } from "react-router-dom";
 
+import BookingApprovalPanel from "@/components/admin/BookingApprovalPanel";
 import PageContainer from "@/components/ui/PageContainer";
 
 import {
-  approveAdminBooking,
+  approveBooking,
   downloadGuestDocument,
   getAdminBooking,
-  rejectAdminBooking,
+  rejectBooking,
   rejectGuestDocument,
   verifyGuestDocument,
 } from "@/services/AdminBookingApi";
 
+const STATUS_LABELS = {
+  pending_review: "Pending Review",
+  awaiting_payment: "Awaiting Payment",
+  confirmed: "Confirmed",
+  rejected: "Rejected",
+  payment_expired: "Payment Expired",
+  cancelled: "Cancelled",
+  checked_in: "Checked In",
+  checked_out: "Checked Out",
+};
+
+const STATUS_CLASSES = {
+  pending_review:
+    "bg-amber-100 text-amber-800",
+
+  awaiting_payment:
+    "bg-blue-100 text-blue-800",
+
+  confirmed:
+    "bg-emerald-100 text-emerald-800",
+
+  rejected:
+    "bg-red-100 text-red-800",
+
+  payment_expired:
+    "bg-red-100 text-red-800",
+
+  cancelled:
+    "bg-slate-200 text-slate-700",
+
+  checked_in:
+    "bg-emerald-100 text-emerald-800",
+
+  checked_out:
+    "bg-slate-200 text-slate-700",
+};
+
+function formatMoney(
+  value,
+  currency = "EUR",
+) {
+  if (
+    value === null
+    ||
+    value === undefined
+    ||
+    value === ""
+  ) {
+    return "—";
+  }
+
+  const amount =
+    Number(value);
+
+  if (
+    !Number.isFinite(
+      amount,
+    )
+  ) {
+    return String(value);
+  }
+
+  try {
+    return new Intl.NumberFormat(
+      "en-IE",
+      {
+        style: "currency",
+        currency:
+          currency || "EUR",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      },
+    ).format(amount);
+  } catch {
+    return `€${amount.toFixed(
+      2,
+    )}`;
+  }
+}
+
+function formatDate(
+  value,
+) {
+  if (!value) {
+    return "—";
+  }
+
+  const date =
+    /^\d{4}-\d{2}-\d{2}$/.test(
+      value,
+    )
+      ? new Date(
+          `${value}T00:00:00`,
+        )
+      : new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    },
+  ).format(date);
+}
+
+function formatDateTime(
+  value,
+) {
+  if (!value) {
+    return "—";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone:
+        "Europe/Vilnius",
+    },
+  ).format(date);
+}
+
+function getErrorMessage(
+  error,
+  fallback,
+) {
+  const validationErrors =
+    error
+      ?.response
+      ?.data
+      ?.errors;
+
+  if (validationErrors) {
+    const message =
+      Object.values(
+        validationErrors,
+      )
+        .flat()
+        .join(" ");
+
+    if (message) {
+      return message;
+    }
+  }
+
+  return (
+    error
+      ?.response
+      ?.data
+      ?.message
+    ??
+    fallback
+  );
+}
+
+function InfoItem({
+  icon: Icon,
+  label,
+  children,
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+        <Icon size={18} />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-sm text-slate-500">
+          {label}
+        </p>
+
+        <div className="mt-1 break-words font-semibold text-slate-900">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BookingDetails() {
-  const { uuid } = useParams();
+  const params =
+    useParams();
+
+  const bookingKey =
+    params.uuid
+    ??
+    params.booking
+    ??
+    params.bookingUuid
+    ??
+    params.id;
 
   const [
-    booking,
-    setBooking,
-  ] = useState(null);
+    refreshVersion,
+    setRefreshVersion,
+  ] = useState(0);
+
+  const requestKey =
+    useMemo(
+      () =>
+        `${bookingKey ?? ""}|${refreshVersion}`,
+      [
+        bookingKey,
+        refreshVersion,
+      ],
+    );
 
   const [
-    availableRooms,
-    setAvailableRooms,
-  ] = useState([]);
-
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
+    requestState,
+    setRequestState,
+  ] = useState({
+    key: null,
+    booking: null,
+    availableRooms: [],
+    error: null,
+  });
 
   const [
     actionLoading,
@@ -53,867 +287,1241 @@ export default function BookingDetails() {
   ] = useState(false);
 
   const [
-    error,
-    setError,
-  ] = useState("");
-
-  const [
-    roomUuid,
-    setRoomUuid,
-  ] = useState("");
-
-  const [
-    payableAmount,
-    setPayableAmount,
-  ] = useState("");
-
-  const [
-    paymentDueAt,
-    setPaymentDueAt,
-  ] = useState("");
-
-  const [
     rejectionReason,
     setRejectionReason,
   ] = useState("");
 
   const [
-    documentRejectionReason,
-    setDocumentRejectionReason,
+    rejectionError,
+    setRejectionError,
   ] = useState("");
 
-  /*
-   * Used after Admin actions such as passport
-   * verification, approval and rejection.
-   *
-   * This function is not called directly from
-   * the initial useEffect.
-   */
-  const refreshBooking =
-    useCallback(async () => {
-      try {
-        const response =
-          await getAdminBooking(
-            uuid,
-          );
+  const [
+    documentAction,
+    setDocumentAction,
+  ] = useState("");
 
-        setBooking(
-          response.booking,
-        );
+  const [
+    passportRejectionReason,
+    setPassportRejectionReason,
+  ] = useState("");
 
-        setAvailableRooms(
-          response.available_rooms
-          ?? [],
-        );
+  const [
+    documentError,
+    setDocumentError,
+  ] = useState("");
 
-        setError("");
-
-        return response;
-      } catch (requestError) {
-        const message =
-          requestError
-            .response
-            ?.data
-            ?.message
-          ?? "The booking could not be loaded.";
-
-        setError(message);
-
-        throw requestError;
-      }
-    }, [uuid]);
-
-  /*
-   * Initial API request.
-   *
-   * The asynchronous request is started from
-   * the effect, and state is changed only when
-   * its Promise settles.
-   */
   useEffect(() => {
-    let cancelled = false;
+    if (!bookingKey) {
+      return undefined;
+    }
 
-    getAdminBooking(uuid)
-      .then((response) => {
+    let cancelled =
+      false;
+
+    getAdminBooking(
+      bookingKey,
+    )
+      .then((data) => {
         if (cancelled) {
           return;
         }
 
-        setBooking(
-          response.booking,
-        );
+        setRequestState({
+          key:
+            requestKey,
 
-        setAvailableRooms(
-          response.available_rooms
-          ?? [],
-        );
+          booking:
+            data
+              ?.booking
+            ??
+            data,
+
+          availableRooms:
+            data
+              ?.available_rooms
+            ??
+            [],
+
+          error:
+            null,
+        });
       })
-      .catch(
-        (requestError) => {
-          if (cancelled) {
-            return;
-          }
-
-          setError(
-            requestError
-              .response
-              ?.data
-              ?.message
-            ?? "The booking could not be loaded.",
-          );
-        },
-      )
-      .finally(() => {
+      .catch((error) => {
         if (cancelled) {
           return;
         }
 
-        setLoading(false);
+        setRequestState({
+          key:
+            requestKey,
+
+          booking:
+            null,
+
+          availableRooms:
+            [],
+
+          error:
+            getErrorMessage(
+              error,
+              "The booking could not be loaded.",
+            ),
+        });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [uuid]);
+  }, [
+    bookingKey,
+    requestKey,
+  ]);
 
-  const performAction =
-    async (callback) => {
-      setActionLoading(true);
-      setError("");
+  if (!bookingKey) {
+    return (
+      <PageContainer>
+        <div className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm">
+          <AlertCircle className="mx-auto size-11 text-red-500" />
 
-      try {
-        await callback();
+          <h1 className="mt-5 text-2xl font-bold text-slate-950">
+            Booking not specified
+          </h1>
 
-        await refreshBooking();
-      } catch (requestError) {
-        const errors =
-          requestError
-            .response
-            ?.data
-            ?.errors;
+          <Link
+            to="/admin/bookings"
+            className="mt-6 inline-flex items-center gap-2 font-semibold text-blue-600"
+          >
+            <ArrowLeft
+              size={18}
+            />
 
-        const firstError =
-          errors
-            ? Object.values(
-                errors,
-              )[0]?.[0]
-            : null;
+            Back to bookings
+          </Link>
+        </div>
+      </PageContainer>
+    );
+  }
 
-        setError(
-          firstError
-          ?? requestError
-            .response
-            ?.data
-            ?.message
-          ?? "The action could not be completed.",
-        );
-      } finally {
-        setActionLoading(false);
-      }
-    };
+  const loading =
+    requestState.key
+    !== requestKey;
 
   if (loading) {
     return (
       <PageContainer>
-        <div className="flex min-h-96 items-center justify-center">
-          <Loader2 className="size-10 animate-spin text-indigo-600" />
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="mx-auto size-10 animate-spin text-blue-600" />
+
+            <p className="mt-4 font-medium text-slate-600">
+              Loading booking...
+            </p>
+          </div>
         </div>
       </PageContainer>
     );
   }
 
   if (
-    error
-    && !booking
+    requestState.error
+    ||
+    !requestState.booking
   ) {
     return (
       <PageContainer>
-        <Link
-          to="/admin/bookings"
-          className="inline-flex items-center gap-2 font-medium text-slate-600 hover:text-indigo-600"
-        >
-          <ArrowLeft size={18} />
-          Back to Bookings
-        </Link>
+        <div className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm">
+          <AlertCircle className="mx-auto size-11 text-red-500" />
 
-        <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
-          {error}
+          <h1 className="mt-5 text-2xl font-bold text-slate-950">
+            Booking unavailable
+          </h1>
+
+          <p className="mt-3 text-slate-600">
+            {
+              requestState.error
+            }
+          </p>
+
+          <Link
+            to="/admin/bookings"
+            className="mt-6 inline-flex items-center gap-2 font-semibold text-blue-600"
+          >
+            <ArrowLeft
+              size={18}
+            />
+
+            Back to bookings
+          </Link>
         </div>
       </PageContainer>
     );
   }
 
-  if (!booking) {
-    return null;
-  }
+  const booking =
+    requestState.booking;
 
-  const document =
+  const availableRooms =
+    requestState
+      .availableRooms;
+
+  const status =
+    booking.status
+    ??
     booking
-      .passport_documents?.[0]
-    ?? null;
+      .booking_status
+    ??
+    "pending_review";
+
+  const guest =
+    booking.guest
+    ?? {};
+
+  const firstItem =
+    booking
+      .items
+      ?.first
+    ??
+    booking
+      .items
+      ?.[0]
+    ??
+    null;
+
+  const propertyName =
+    booking
+      .property
+      ?.name
+    ??
+    "—";
+
+  const roomTypeName =
+    booking
+      .stay
+      ?.room_type
+      ?.name
+    ??
+    firstItem
+      ?.room_type
+      ?.name
+    ??
+    firstItem
+      ?.roomType
+      ?.name
+    ??
+    "—";
+
+  const occupants =
+    booking
+      .stay
+      ?.occupants
+    ??
+    firstItem
+      ?.occupants
+    ??
+    booking
+      .guest_count
+    ??
+    "—";
+
+  const contractName =
+    booking
+      .stay
+      ?.contract
+      ?.name
+    ??
+    booking
+      .stay
+      ?.term_label
+    ??
+    firstItem
+      ?.contract
+      ?.name
+    ??
+    "—";
+
+  const checkIn =
+    booking
+      .stay
+      ?.check_in_date
+    ??
+    booking
+      .check_in_date;
+
+  const checkOut =
+    booking
+      .stay
+      ?.check_out_date
+    ??
+    booking
+      .check_out_date;
+
+  const documents =
+    booking
+      .documents
+    ??
+    [];
+
+  const passportDocument =
+    documents.find(
+      (document) =>
+        document
+          ?.document_type
+        === "passport"
+        ||
+        document
+          ?.type
+        === "passport",
+    )
+    ??
+    documents[0]
+    ??
+    booking
+      .passport_proof
+    ??
+    null;
+
+  const passportStatus =
+    passportDocument
+      ?.verification_status
+    ??
+    passportDocument
+      ?.status
+    ??
+    (
+      passportDocument
+        ?.verified_at
+        ? "verified"
+        : "pending"
+    );
 
   const passportVerified =
-    document?.status
+    passportStatus
     === "verified";
 
-  const handleApprove = () => {
-    performAction(
-      async () => {
-        await approveAdminBooking(
-          booking.uuid,
-          {
-            room_uuid:
-              roomUuid,
+  const documentKey =
+    passportDocument
+      ?.uuid
+    ??
+    passportDocument
+      ?.id;
 
-            payable_amount:
-              payableAmount,
+  const financial =
+    booking
+      .financial
+    ??
+    null;
 
-            payment_due_at:
-              paymentDueAt,
-          },
-        );
-      },
-    );
-  };
+  const currency =
+    booking
+      .pricing
+      ?.currency
+    ??
+    booking.currency
+    ??
+    "EUR";
 
-  const handleRejectBooking =
-    () => {
-      performAction(
-        async () => {
-          await rejectAdminBooking(
-            booking.uuid,
-            rejectionReason,
-          );
+  const calculatedTotal =
+    booking
+      .pricing
+      ?.estimated_total_amount
+    ??
+    booking
+      .estimated_total_amount
+    ??
+    0;
 
-          setRejectionReason("");
-        },
+  const handleApprove =
+    async (payload) => {
+      setActionLoading(
+        true,
       );
-    };
-
-  const handleVerifyDocument =
-    () => {
-      if (!document) {
-        return;
-      }
-
-      performAction(
-        async () => {
-          await verifyGuestDocument(
-            document.uuid,
-          );
-        },
-      );
-    };
-
-  const handleRejectDocument =
-    () => {
-      if (!document) {
-        return;
-      }
-
-      performAction(
-        async () => {
-          await rejectGuestDocument(
-            document.uuid,
-            documentRejectionReason,
-          );
-
-          setDocumentRejectionReason(
-            "",
-          );
-        },
-      );
-    };
-
-  const handleDownloadDocument =
-    async () => {
-      if (!document) {
-        return;
-      }
 
       try {
-        setError("");
-
-        await downloadGuestDocument(
-          document.uuid,
-          document.original_name,
+        await approveBooking(
+          booking.uuid
+          ??
+          bookingKey,
+          payload,
         );
-      } catch (requestError) {
-        setError(
-          requestError
-            .response
-            ?.data
-            ?.message
-          ?? "The passport document could not be downloaded.",
+
+        setRefreshVersion(
+          (current) =>
+            current + 1,
+        );
+      } finally {
+        setActionLoading(
+          false,
+        );
+      }
+    };
+
+  const handleReject =
+    async (event) => {
+      event.preventDefault();
+
+      setRejectionError(
+        "",
+      );
+
+      if (
+        !rejectionReason
+          .trim()
+      ) {
+        setRejectionError(
+          "Enter a rejection reason.",
+        );
+
+        return;
+      }
+
+      setActionLoading(
+        true,
+      );
+
+      try {
+        await rejectBooking(
+          booking.uuid
+          ??
+          bookingKey,
+          {
+            reason:
+              rejectionReason
+                .trim(),
+          },
+        );
+
+        setRefreshVersion(
+          (current) =>
+            current + 1,
+        );
+      } catch (error) {
+        setRejectionError(
+          getErrorMessage(
+            error,
+            "The booking could not be rejected.",
+          ),
+        );
+      } finally {
+        setActionLoading(
+          false,
+        );
+      }
+    };
+
+  const handleVerifyPassport =
+    async () => {
+      if (!documentKey) {
+        return;
+      }
+
+      setDocumentError(
+        "",
+      );
+
+      setDocumentAction(
+        "verify",
+      );
+
+      try {
+        await verifyGuestDocument(
+          documentKey,
+        );
+
+        setPassportRejectionReason(
+          "",
+        );
+
+        setRefreshVersion(
+          (current) =>
+            current + 1,
+        );
+      } catch (error) {
+        setDocumentError(
+          getErrorMessage(
+            error,
+            "The passport proof could not be verified.",
+          ),
+        );
+      } finally {
+        setDocumentAction(
+          "",
+        );
+      }
+    };
+
+  const handleRejectPassport =
+    async () => {
+      if (!documentKey) {
+        return;
+      }
+
+      setDocumentError(
+        "",
+      );
+
+      if (
+        !passportRejectionReason
+          .trim()
+      ) {
+        setDocumentError(
+          "Enter a reason for rejecting the passport proof.",
+        );
+
+        return;
+      }
+
+      setDocumentAction(
+        "reject",
+      );
+
+      try {
+        await rejectGuestDocument(
+          documentKey,
+          {
+            reason:
+              passportRejectionReason
+                .trim(),
+          },
+        );
+
+        setRefreshVersion(
+          (current) =>
+            current + 1,
+        );
+      } catch (error) {
+        setDocumentError(
+          getErrorMessage(
+            error,
+            "The passport proof could not be rejected.",
+          ),
+        );
+      } finally {
+        setDocumentAction(
+          "",
+        );
+      }
+    };
+
+  const handleDownloadPassport =
+    async () => {
+      if (!documentKey) {
+        return;
+      }
+
+      setDocumentError(
+        "",
+      );
+
+      setDocumentAction(
+        "download",
+      );
+
+      try {
+        const response =
+          await downloadGuestDocument(
+            documentKey,
+          );
+
+        const contentDisposition =
+          response
+            .headers
+            ?.[
+              "content-disposition"
+            ];
+
+        const fileNameMatch =
+          contentDisposition
+            ?.match(
+              /filename="?([^"]+)"?/i,
+            );
+
+        const fileName =
+          fileNameMatch
+            ?.[1]
+          ??
+          passportDocument
+            ?.original_name
+          ??
+          passportDocument
+            ?.file_name
+          ??
+          "passport-document";
+
+        const blobUrl =
+          URL.createObjectURL(
+            response.data,
+          );
+
+        const link =
+          document
+            .createElement(
+              "a",
+            );
+
+        link.href =
+          blobUrl;
+
+        link.download =
+          fileName;
+
+        document
+          .body
+          .appendChild(
+            link,
+          );
+
+        link.click();
+        link.remove();
+
+        URL.revokeObjectURL(
+          blobUrl,
+        );
+      } catch (error) {
+        setDocumentError(
+          getErrorMessage(
+            error,
+            "The passport document could not be downloaded.",
+          ),
+        );
+      } finally {
+        setDocumentAction(
+          "",
         );
       }
     };
 
   return (
     <PageContainer>
-      <Link
-        to="/admin/bookings"
-        className="inline-flex items-center gap-2 font-medium text-slate-600 hover:text-indigo-600"
-      >
-        <ArrowLeft size={18} />
-        Back to Bookings
-      </Link>
+      <div className="pb-12">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <Link
+              to="/admin/bookings"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:text-blue-700"
+            >
+              <ArrowLeft
+                size={17}
+              />
 
-      <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-indigo-600">
-            Booking Application
-          </p>
+              Back to bookings
+            </Link>
 
-          <h1 className="mt-2 text-4xl font-bold text-slate-950">
-            {
-              booking.booking_reference
-            }
-          </h1>
-        </div>
-
-        <span className="w-fit rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold capitalize text-slate-700">
-          {booking.status.replaceAll(
-            "_",
-            " ",
-          )}
-        </span>
-      </div>
-
-      {error ? (
-        <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
-          {error}
-        </div>
-      ) : null}
-
-      <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="space-y-8">
-          {/* Applicant */}
-          <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">
-              Applicant
-            </h2>
-
-            <dl className="mt-6 grid gap-6 sm:grid-cols-2">
-              <div>
-                <dt className="text-sm text-slate-500">
-                  Name
-                </dt>
-
-                <dd className="mt-1 font-semibold text-slate-900">
-                  {booking.guest.name}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm text-slate-500">
-                  Email
-                </dt>
-
-                <dd className="mt-1 break-all font-semibold text-slate-900">
-                  {booking.guest.email}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm text-slate-500">
-                  Phone
-                </dt>
-
-                <dd className="mt-1 font-semibold text-slate-900">
-                  {booking.guest.phone}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm text-slate-500">
-                  Passport
-                </dt>
-
-                <dd className="mt-1 font-semibold text-slate-900">
-                  {
-                    booking
-                      .guest
-                      .passport_number
-                  }
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          {/* Accommodation */}
-          <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">
-              Accommodation
-            </h2>
-
-            <dl className="mt-6 grid gap-6 sm:grid-cols-2">
-              <div>
-                <dt className="text-sm text-slate-500">
-                  Property
-                </dt>
-
-                <dd className="mt-1 font-semibold text-slate-900">
-                  {
-                    booking
-                      .property
-                      .name
-                  }
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm text-slate-500">
-                  Room Type
-                </dt>
-
-                <dd className="mt-1 font-semibold text-slate-900">
-                  {
-                    booking
-                      .room_type
-                      .name
-                  }
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm text-slate-500">
-                  Occupants
-                </dt>
-
-                <dd className="mt-1 font-semibold text-slate-900">
-                  {
-                    booking.guest_count
-                  }
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm text-slate-500">
-                  Contract
-                </dt>
-
-                <dd className="mt-1 font-semibold text-slate-900">
-                  {
-                    booking
-                      .contract
-                      .name
-                  }
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm text-slate-500">
-                  Check In
-                </dt>
-
-                <dd className="mt-1 font-semibold text-slate-900">
-                  {
-                    booking
-                      .check_in_date
-                  }
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm text-slate-500">
-                  Check Out
-                </dt>
-
-                <dd className="mt-1 font-semibold text-slate-900">
-                  {
-                    booking
-                      .check_out_date
-                  }
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          {/* Passport */}
-          <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="size-6 text-indigo-600" />
-
-              <h2 className="text-2xl font-bold text-slate-950">
-                Passport Proof
-              </h2>
-            </div>
-
-            {!document ? (
-              <p className="mt-5 text-red-600">
-                No passport document is
-                attached.
-              </p>
-            ) : (
-              <>
-                <div className="mt-6 rounded-2xl bg-slate-50 p-5">
-                  <p className="break-all font-semibold text-slate-900">
-                    {
-                      document
-                        .original_name
-                    }
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Status:{" "}
-                    <span className="font-semibold capitalize">
-                      {document.status}
-                    </span>
-                  </p>
-
-                  {document
-                    .rejection_reason ? (
-                    <p className="mt-3 text-sm text-red-600">
-                      {
-                        document
-                          .rejection_reason
-                      }
-                    </p>
-                  ) : null}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={
-                    handleDownloadDocument
-                  }
-                  className="mt-5 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  <Download size={18} />
-                  Download Passport
-                </button>
-
-                {booking.status
-                  === "pending_review" ? (
-                  <div className="mt-6 border-t border-slate-200 pt-6">
-                    {document.status
-                      !== "verified" ? (
-                      <button
-                        type="button"
-                        disabled={
-                          actionLoading
-                        }
-                        onClick={
-                          handleVerifyDocument
-                        }
-                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
-                      >
-                        <CheckCircle2
-                          size={18}
-                        />
-                        Verify Passport
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2 font-semibold text-emerald-700">
-                        <CheckCircle2
-                          size={20}
-                        />
-                        Passport Verified
-                      </div>
-                    )}
-
-                    {document.status
-                      !== "verified" ? (
-                      <>
-                        <textarea
-                          rows={3}
-                          value={
-                            documentRejectionReason
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            setDocumentRejectionReason(
-                              event
-                                .target
-                                .value,
-                            )
-                          }
-                          placeholder="Reason for rejecting passport proof"
-                          className="mt-5 w-full rounded-xl border border-slate-300 p-3 outline-none focus:border-indigo-500"
-                        />
-
-                        <button
-                          type="button"
-                          disabled={
-                            actionLoading
-                            || !documentRejectionReason.trim()
-                          }
-                          onClick={
-                            handleRejectDocument
-                          }
-                          className="mt-3 inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
-                        >
-                          <XCircle
-                            size={18}
-                          />
-                          Reject Passport
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                ) : null}
-              </>
-            )}
-          </section>
-        </div>
-
-        <aside className="space-y-8">
-          {/* Pricing */}
-          <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-wider text-indigo-600">
-              Pricing
-            </p>
-
-            <p className="mt-4 text-3xl font-bold text-slate-950">
-              €
-              {
-                booking
-                  .pricing
-                  .unit_price
-              }
-            </p>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Per person /{" "}
-              {
-                booking
-                  .contract
-                  .billing_unit
-              }
-            </p>
-
-            <div className="mt-6 rounded-2xl bg-slate-50 p-5">
-              <p className="text-sm text-slate-500">
-                Estimated total
-              </p>
-
-              <p className="mt-1 text-2xl font-bold text-slate-950">
-                €
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold text-slate-950">
                 {
                   booking
-                    .estimated_total_amount
+                    .booking_reference
+                  ??
+                  "Booking"
                 }
-              </p>
+              </h1>
+
+              <span
+                className={
+                  `rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
+                    STATUS_CLASSES[
+                      status
+                    ]
+                    ??
+                    "bg-slate-100 text-slate-700"
+                  }`
+                }
+              >
+                {
+                  STATUS_LABELS[
+                    status
+                  ]
+                  ??
+                  status
+                    .replaceAll(
+                      "_",
+                      " ",
+                    )
+                }
+              </span>
             </div>
-          </section>
 
-          {booking.status
-            === "pending_review" ? (
-            <>
-              {/* Approve */}
-              <section className="rounded-3xl border border-emerald-200 bg-white p-7 shadow-sm">
+            <p className="mt-2 text-sm text-slate-500">
+              Submitted{" "}
+              {formatDateTime(
+                booking
+                  .submitted_at
+                ??
+                booking
+                  .created_at,
+              )}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              setRefreshVersion(
+                (current) =>
+                  current + 1,
+              )
+            }
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            <RefreshCw
+              size={17}
+            />
+
+            Refresh
+          </button>
+        </div>
+
+        <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="space-y-8">
+            {/* Guest Information */}
+            <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+              <div className="flex items-center gap-3">
+                <UserRound className="text-blue-600" />
+
                 <h2 className="text-xl font-bold text-slate-950">
-                  Approve Booking
+                  Guest Information
                 </h2>
+              </div>
 
-                {!passportVerified ? (
-                  <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-800">
-                    Verify the passport
-                    proof before approval.
-                  </p>
-                ) : null}
-
-                <label
-                  htmlFor="roomUuid"
-                  className="mt-5 block text-sm font-semibold"
+              <div className="mt-7 grid gap-6 md:grid-cols-2">
+                <InfoItem
+                  icon={UserRound}
+                  label="Guest Name"
                 >
-                  Physical Room
-                </label>
-
-                <select
-                  id="roomUuid"
-                  value={roomUuid}
-                  onChange={(event) =>
-                    setRoomUuid(
-                      event.target.value,
-                    )
+                  {
+                    guest.full_name
+                    ||
+                    [
+                      guest.first_name,
+                      guest.last_name,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")
+                    ||
+                    "—"
                   }
-                  className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-3"
-                >
-                  <option value="">
-                    Select room
-                  </option>
+                </InfoItem>
 
-                  {availableRooms.map(
-                    (room) => (
-                      <option
-                        key={room.uuid}
-                        value={room.uuid}
-                      >
-                        {
-                          room.room_number
-                        }
-                        {" · Floor "}
-                        {room.floor ?? "—"}
-                        {" · Capacity "}
-                        {room.capacity}
-                      </option>
-                    ),
+                <InfoItem
+                  icon={Mail}
+                  label="Email"
+                >
+                  {
+                    guest.email
+                    ??
+                    "—"
+                  }
+                </InfoItem>
+
+                <InfoItem
+                  icon={Phone}
+                  label="Phone"
+                >
+                  {
+                    guest.phone
+                    ??
+                    "—"
+                  }
+                </InfoItem>
+
+                <InfoItem
+                  icon={Users}
+                  label="Occupants"
+                >
+                  {occupants}
+                </InfoItem>
+              </div>
+            </section>
+
+            {/* Accommodation */}
+            <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+              <div className="flex items-center gap-3">
+                <BedDouble className="text-blue-600" />
+
+                <h2 className="text-xl font-bold text-slate-950">
+                  Accommodation
+                </h2>
+              </div>
+
+              <div className="mt-7 grid gap-6 md:grid-cols-2">
+                <InfoItem
+                  icon={MapPin}
+                  label="Property"
+                >
+                  {propertyName}
+                </InfoItem>
+
+                <InfoItem
+                  icon={BedDouble}
+                  label="Room Type"
+                >
+                  {roomTypeName}
+                </InfoItem>
+
+                <InfoItem
+                  icon={Users}
+                  label="Occupants"
+                >
+                  {occupants}
+                </InfoItem>
+
+                <InfoItem
+                  icon={CalendarDays}
+                  label="Contract / Stay Term"
+                >
+                  {contractName}
+                </InfoItem>
+
+                <InfoItem
+                  icon={CalendarDays}
+                  label="Check In"
+                >
+                  {formatDate(
+                    checkIn,
                   )}
-                </select>
+                </InfoItem>
 
-                {availableRooms.length
-                  === 0 ? (
-                  <p className="mt-3 text-sm leading-6 text-amber-700">
-                    No active physical
-                    rooms currently match
-                    this request.
-                  </p>
-                ) : null}
-
-                <label
-                  htmlFor="payableAmount"
-                  className="mt-5 block text-sm font-semibold"
+                <InfoItem
+                  icon={CalendarDays}
+                  label="Check Out"
                 >
-                  Payable Amount (€)
-                </label>
+                  {formatDate(
+                    checkOut,
+                  )}
+                </InfoItem>
+              </div>
 
-                <input
-                  id="payableAmount"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={
-                    payableAmount
-                  }
-                  onChange={(event) =>
-                    setPayableAmount(
-                      event.target.value,
-                    )
-                  }
-                  className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-3"
-                />
-
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  This will become the
-                  Stripe payment amount
-                  later.
+              <div className="mt-7 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+                <p className="text-sm font-semibold text-blue-700">
+                  System Calculated
+                  Booking Total
                 </p>
 
-                <label
-                  htmlFor="paymentDueAt"
-                  className="mt-5 block text-sm font-semibold"
-                >
-                  Payment Deadline
-                </label>
+                <p className="mt-2 text-3xl font-bold text-blue-950">
+                  {formatMoney(
+                    calculatedTotal,
+                    currency,
+                  )}
+                </p>
 
-                <input
-                  id="paymentDueAt"
-                  type="datetime-local"
-                  value={
-                    paymentDueAt
-                  }
-                  onChange={(event) =>
-                    setPaymentDueAt(
-                      event.target.value,
-                    )
-                  }
-                  className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-3"
-                />
+                <p className="mt-2 text-xs leading-5 text-blue-700">
+                  This is calculated
+                  automatically from
+                  the selected rate,
+                  occupants and stay.
+                </p>
+              </div>
+            </section>
 
-                <button
-                  type="button"
-                  disabled={
+            {/* Passport Proof */}
+            <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="text-blue-600" />
+
+                <h2 className="text-xl font-bold text-slate-950">
+                  Passport Proof
+                </h2>
+              </div>
+
+              {!passportDocument ? (
+                <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800">
+                  No passport proof
+                  was found for this
+                  booking.
+                </div>
+              ) : (
+                <>
+                  <div className="mt-6 rounded-2xl bg-slate-50 p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-start gap-3">
+                        <FileCheck2 className="mt-0.5 shrink-0 text-blue-600" />
+
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            {
+                              passportDocument
+                                .original_name
+                              ??
+                              passportDocument
+                                .file_name
+                              ??
+                              "Passport document"
+                            }
+                          </p>
+
+                          <p className="mt-1 text-sm text-slate-500">
+                            Status:{" "}
+                            <span className="font-semibold capitalize">
+                              {passportStatus
+                                .replaceAll(
+                                  "_",
+                                  " ",
+                                )}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={
+                          handleDownloadPassport
+                        }
+                        disabled={
+                          documentAction
+                          !== ""
+                        }
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Download
+                          size={17}
+                        />
+
+                        {documentAction
+                        === "download"
+                          ? "Downloading..."
+                          : "Download Passport"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {status
+                    ===
+                    "pending_review"
+                  ? (
+                    <div className="mt-5 space-y-4">
+                      {!passportVerified ? (
+                        <button
+                          type="button"
+                          onClick={
+                            handleVerifyPassport
+                          }
+                          disabled={
+                            documentAction
+                            !== ""
+                          }
+                          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <CheckCircle2
+                            size={18}
+                          />
+
+                          Verify Passport
+                        </button>
+                      ) : (
+                        <div className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 font-semibold text-emerald-700">
+                          <CheckCircle2
+                            size={18}
+                          />
+
+                          Passport Verified
+                        </div>
+                      )}
+
+                      {!passportVerified ? (
+                        <div>
+                          <label
+                            htmlFor="passport-rejection-reason"
+                            className="text-sm font-semibold text-slate-700"
+                          >
+                            Passport
+                            Rejection Reason
+                          </label>
+
+                          <textarea
+                            id="passport-rejection-reason"
+                            rows={3}
+                            value={
+                              passportRejectionReason
+                            }
+                            onChange={(
+                              event,
+                            ) =>
+                              setPassportRejectionReason(
+                                event
+                                  .target
+                                  .value,
+                              )
+                            }
+                            placeholder="Explain why this passport proof cannot be accepted."
+                            className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={
+                              handleRejectPassport
+                            }
+                            disabled={
+                              documentAction
+                              !== ""
+                            }
+                            className="mt-3 inline-flex items-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <XCircle
+                              size={17}
+                            />
+
+                            {documentAction
+                            === "reject"
+                              ? "Rejecting..."
+                              : "Reject Passport"}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {documentError ? (
+                    <div
+                      role="alert"
+                      className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+                    >
+                      {documentError}
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </section>
+
+            {/* Existing Payment Plan */}
+            {financial ? (
+              <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+                <h2 className="text-xl font-bold text-slate-950">
+                  Payment Plan
+                </h2>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-2xl bg-slate-50 p-5">
+                    <p className="text-sm text-slate-500">
+                      Booking Total
+                    </p>
+
+                    <p className="mt-2 text-xl font-bold text-slate-950">
+                      {formatMoney(
+                        financial
+                          .booking_total_amount,
+                        currency,
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-emerald-50 p-5">
+                    <p className="text-sm text-emerald-700">
+                      Paid
+                    </p>
+
+                    <p className="mt-2 text-xl font-bold text-emerald-950">
+                      {formatMoney(
+                        financial
+                          .paid_amount,
+                        currency,
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-blue-50 p-5">
+                    <p className="text-sm text-blue-700">
+                      Outstanding
+                    </p>
+
+                    <p className="mt-2 text-xl font-bold text-blue-950">
+                      {formatMoney(
+                        financial
+                          .outstanding_amount,
+                        currency,
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {financial
+                  .installments
+                  ?.length > 0 ? (
+                  <div className="mt-6 space-y-3">
+                    {financial
+                      .installments
+                      .map(
+                        (
+                          installment,
+                        ) => (
+                          <div
+                            key={
+                              installment
+                                .uuid
+                            }
+                            className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div>
+                              <p className="font-semibold text-slate-950">
+                                {
+                                  installment
+                                    .label
+                                }
+                              </p>
+
+                              <p className="mt-1 text-sm text-slate-500">
+                                Due{" "}
+                                {formatDateTime(
+                                  installment
+                                    .due_at,
+                                )}
+                              </p>
+                            </div>
+
+                            <div className="sm:text-right">
+                              <p className="font-bold text-slate-950">
+                                {formatMoney(
+                                  installment
+                                    .amount,
+                                  currency,
+                                )}
+                              </p>
+
+                              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                {
+                                  installment
+                                    .status
+                                }
+                              </p>
+                            </div>
+                          </div>
+                        ),
+                      )}
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+          </div>
+
+          <aside className="space-y-8">
+            {status ===
+            "pending_review" ? (
+              <>
+                <BookingApprovalPanel
+                  booking={
+                    booking
+                  }
+                  availableRooms={
+                    availableRooms
+                  }
+                  passportVerified={
+                    passportVerified
+                  }
+                  busy={
                     actionLoading
-                    || !passportVerified
-                    || !roomUuid
-                    || !payableAmount
-                    || !paymentDueAt
                   }
-                  onClick={
+                  onApprove={
                     handleApprove
                   }
-                  className="mt-6 flex w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {actionLoading
-                    ? "Processing..."
-                    : "Approve & Request Payment"}
-                </button>
-              </section>
-
-              {/* Reject booking */}
-              <section className="rounded-3xl border border-red-200 bg-white p-7 shadow-sm">
-                <h2 className="text-xl font-bold text-slate-950">
-                  Reject Booking
-                </h2>
-
-                <textarea
-                  rows={4}
-                  value={
-                    rejectionReason
-                  }
-                  onChange={(event) =>
-                    setRejectionReason(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="Explain why the application is being rejected"
-                  className="mt-5 w-full rounded-xl border border-slate-300 p-3 outline-none focus:border-red-500"
                 />
 
-                <button
-                  type="button"
-                  disabled={
-                    actionLoading
-                    || !rejectionReason.trim()
-                  }
-                  onClick={
-                    handleRejectBooking
-                  }
-                  className="mt-4 w-full rounded-xl bg-red-600 px-5 py-3 font-semibold text-white transition hover:bg-red-700 disabled:opacity-40"
-                >
-                  Reject Booking
-                </button>
+                <section className="rounded-3xl border border-red-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <XCircle className="text-red-600" />
+
+                    <h2 className="text-xl font-bold text-slate-950">
+                      Reject Booking
+                    </h2>
+                  </div>
+
+                  <form
+                    onSubmit={
+                      handleReject
+                    }
+                    className="mt-5"
+                  >
+                    <label
+                      htmlFor="booking-rejection-reason"
+                      className="text-sm font-semibold text-slate-700"
+                    >
+                      Rejection Reason
+                    </label>
+
+                    <textarea
+                      id="booking-rejection-reason"
+                      rows={4}
+                      value={
+                        rejectionReason
+                      }
+                      onChange={(
+                        event,
+                      ) => {
+                        setRejectionReason(
+                          event
+                            .target
+                            .value,
+                        );
+
+                        setRejectionError(
+                          "",
+                        );
+                      }}
+                      placeholder="Explain why the booking request is being rejected."
+                      className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    />
+
+                    {rejectionError ? (
+                      <div
+                        role="alert"
+                        className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+                      >
+                        {
+                          rejectionError
+                        }
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="submit"
+                      disabled={
+                        actionLoading
+                      }
+                      className="mt-4 w-full rounded-xl border border-red-300 bg-white px-6 py-4 font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {actionLoading
+                        ? "Processing..."
+                        : "Reject Booking"}
+                    </button>
+                  </form>
+                </section>
+              </>
+            ) : (
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-bold text-slate-950">
+                  Review Complete
+                </h2>
+
+                <p className="mt-3 leading-7 text-slate-600">
+                  This booking is no
+                  longer pending Admin
+                  review.
+                </p>
+
+                <div className="mt-5 rounded-xl bg-slate-50 p-4">
+                  <p className="text-sm text-slate-500">
+                    Current Status
+                  </p>
+
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {
+                      STATUS_LABELS[
+                        status
+                      ]
+                      ??
+                      status
+                        .replaceAll(
+                          "_",
+                          " ",
+                        )
+                    }
+                  </p>
+                </div>
               </section>
-            </>
-          ) : (
-            <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-              <h2 className="text-xl font-bold text-slate-950">
-                Review Complete
-              </h2>
-
-              {booking
-                .assigned_room ? (
-                <p className="mt-4 text-slate-600">
-                  Assigned room:{" "}
-                  <strong>
-                    {
-                      booking
-                        .assigned_room
-                        .room_number
-                    }
-                  </strong>
-                </p>
-              ) : null}
-
-              {booking
-                .payable_amount ? (
-                <p className="mt-3 text-slate-600">
-                  Payable amount:{" "}
-                  <strong>
-                    €
-                    {
-                      booking
-                        .payable_amount
-                    }
-                  </strong>
-                </p>
-              ) : null}
-
-              {booking
-                .rejection_reason ? (
-                <p className="mt-3 text-red-600">
-                  {
-                    booking
-                      .rejection_reason
-                  }
-                </p>
-              ) : null}
-            </section>
-          )}
-        </aside>
+            )}
+          </aside>
+        </div>
       </div>
     </PageContainer>
   );

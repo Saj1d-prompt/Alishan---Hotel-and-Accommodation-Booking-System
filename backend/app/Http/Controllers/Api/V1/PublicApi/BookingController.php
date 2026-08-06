@@ -21,21 +21,20 @@ class BookingController extends Controller
         private readonly
         BookingNotificationService
         $bookingNotificationService
-    ) {
-    }
+    ) {}
 
     public function store(
         StoreBookingRequest $request
     ): JsonResponse {
         $result =
             $this
-                ->bookingRequestService
-                ->create(
-                    $request->validated(),
-                    $request->file(
-                        'passport_copy'
-                    )
-                );
+            ->bookingRequestService
+            ->create(
+                $request->validated(),
+                $request->file(
+                    'passport_copy'
+                )
+            );
 
         $booking =
             $result['booking'];
@@ -51,22 +50,19 @@ class BookingController extends Controller
 
         return response()->json([
             'message' =>
-                'Your booking request has been submitted for review.',
+            'Your booking request has been submitted for review.',
 
             'data' => [
-                'booking' =>
-                    (
-                        new PublicBookingResource(
-                            $booking
-                        )
-                    )->resolve(
-                        $request
-                    ),
+                'booking' => (
+                    new PublicBookingResource(
+                        $booking
+                    )
+                )->resolve(
+                    $request
+                ),
 
                 'access_token' =>
-                    $result[
-                        'access_token'
-                    ],
+                $result['access_token'],
             ],
         ], 201);
     }
@@ -89,11 +85,11 @@ class BookingController extends Controller
 
         $booking =
             Booking::query()
-                ->where(
-                    'booking_reference',
-                    $bookingReference
-                )
-                ->firstOrFail();
+            ->where(
+                'booking_reference',
+                $bookingReference
+            )
+            ->firstOrFail();
 
         $providedHash =
             hash(
@@ -112,11 +108,18 @@ class BookingController extends Controller
 
         $booking->load([
             'guest',
+
             'property.city',
+
             'items.roomType',
+
             'items.contract',
+
             'items.priceList',
+
             'documents',
+
+            'paymentInstallments',
         ]);
 
         return new PublicBookingResource(
