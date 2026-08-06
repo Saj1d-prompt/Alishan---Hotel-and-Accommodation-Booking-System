@@ -13,14 +13,17 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 class PropertyController extends Controller
 {
     public function __construct(
-        private readonly PropertyCatalogService $catalogService
+        private readonly
+        PropertyCatalogService
+        $catalogService
     ) {
     }
 
     public function index(): AnonymousResourceCollection
     {
         $properties =
-            $this->catalogService
+            $this
+                ->catalogService
                 ->getLocations();
 
         return PropertyResource::collection(
@@ -37,8 +40,11 @@ class PropertyController extends Controller
         );
 
         $property =
-            $this->catalogService
-                ->getLocation($property);
+            $this
+                ->catalogService
+                ->getLocation(
+                    $property
+                );
 
         return new PropertyResource(
             $property
@@ -55,10 +61,18 @@ class PropertyController extends Controller
         );
 
         $propertyContract =
-            $this->catalogService
+            $this
+                ->catalogService
                 ->getRoomTypeOffers(
                     $property,
-                    $request->stayTerm()
+                    $request
+                        ->stayTerm(),
+                    $request
+                        ->occupants(),
+                    $request
+                        ->checkInDate(),
+                    $request
+                        ->checkOutDate()
                 );
 
         return new PropertyOfferResource(

@@ -12,7 +12,6 @@ use App\Models\Property;
 use App\Models\PropertyContract;
 use App\Models\RoomType;
 use App\Support\PassportNumber;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -23,6 +22,13 @@ use Throwable;
 
 class BookingRequestService
 {
+    public function __construct(
+        private readonly
+        RoomAvailabilityService
+        $roomAvailabilityService
+    ) {
+    }
+
     /**
      * @return array{
      *     booking: Booking,
@@ -70,8 +76,11 @@ class BookingRequestService
                             )
                             ->firstOrFail();
 
-                    $occupants = (int)
-                        $data['occupants'];
+                    $occupants =
+                        (int)
+                        $data[
+                            'occupants'
+                        ];
 
                     if (
                         $occupants >
@@ -98,33 +107,63 @@ class BookingRequestService
                             );
 
                     $priceList =
-                        $this->resolvePriceList(
-                            $propertyContract,
-                            $roomType
-                        );
+                        $this
+                            ->resolvePriceList(
+                                $propertyContract,
+                                $roomType
+                            );
 
-                    $dates =
-                        $this->resolveStayDates(
-                            $stayTerm,
-                            $data,
-                            $propertyContract
-                                ->contract
-                                ->min_nights,
-                            $propertyContract
-                                ->contract
-                                ->max_months
-                        );
+                    /*
+                     * Resolve exactly the same period
+                     * used by the public catalogue.
+                     */
+                    $period =
+                        $this
+                            ->roomAvailabilityService
+                            ->resolveStayPeriod(
+                                $propertyContract,
+                                $stayTerm,
+                                $data[
+                                    'check_in_date'
+                                ]
+                                ?? null,
+                                $data[
+                                    'check_out_date'
+                                ]
+                                ?? null
+                            );
 
                     $checkIn =
-                        $dates['check_in'];
+                        $period[
+                            'check_in'
+                        ];
 
                     $checkOut =
-                        $dates['check_out'];
+                        $period[
+                            'check_out'
+                        ];
 
                     $durationUnits =
-                        $dates[
+                        $period[
                             'duration_units'
                         ];
+
+                    /*
+                     * SECURITY / BUSINESS RULE:
+                     *
+                     * Do not create pending_review
+                     * applications for room types
+                     * with zero current inventory.
+                     */
+                    $this
+                        ->roomAvailabilityService
+                        ->assertRoomTypeAvailable(
+                            $propertyContract,
+                            $roomType,
+                            $occupants,
+                            $checkIn,
+                            $checkOut
+                        );
 
                     $passportNumber =
                         PassportNumber::normalize(
@@ -148,10 +187,14 @@ class BookingRequestService
 
                     $guestData = [
                         'first_name' =>
-                            $data['first_name'],
+                            $data[
+                                'first_name'
+                            ],
 
                         'last_name' =>
-                            $data['last_name'],
+                            $data[
+                                'last_name'
+                            ],
 
                         'phone' =>
                             $data['phone'],
@@ -168,7 +211,8 @@ class BookingRequestService
                         'document_number_hash' =>
                             $passportHash,
 
-                        'status' => true,
+                        'status' =>
+                            true,
                     ];
 
                     if ($guest) {
@@ -185,21 +229,27 @@ class BookingRequestService
                                     Str::uuid(),
 
                                 'guest_code' =>
-                                    'GST-' .
-                                    (string)
+                                    'GST-'
+                                    . (string)
                                     Str::ulid(),
                             ]);
                     }
 
                     $rawAccessToken =
                         bin2hex(
-                            random_bytes(32)
+                            random_bytes(
+                                32
+                            )
                         );
 
                     $unitPrice =
                         (float)
-                        $priceList->price;
+                        $priceList
+                            ->price;
 
+                    /*
+                     * Rates are PER PERSON.
+                     */
                     $estimatedTotal =
                         round(
                             $unitPrice
@@ -238,6 +288,10 @@ class BookingRequestService
                             'estimated_total_amount' =>
                                 $estimatedTotal,
 
+                            /*
+                             * Admin decides the
+                             * payable amount later.
+                             */
                             'total_amount' =>
                                 null,
 
@@ -267,7 +321,9 @@ class BookingRequestService
                                 now(),
 
                             'notes' =>
-                                $data['notes']
+                                $data[
+                                    'notes'
+                                ]
                                 ?? null,
                         ]);
 
@@ -277,19 +333,27 @@ class BookingRequestService
                             'room_type_id' =>
                                 $roomType->id,
 
-                            'room_id' => null,
+                            /*
+                             * No physical room is
+                             * reserved at this stage.
+                             */
+                            'room_id' =>
+                                null,
 
-                            'bed_id' => null,
+                            'bed_id' =>
+                                null,
 
                             'contract_id' =>
                                 $propertyContract
                                     ->contract_id,
 
                             'price_list_id' =>
-                                $priceList->id,
+                                $priceList
+                                    ->id,
 
                             'unit_price' =>
-                                $priceList->price,
+                                $priceList
+                                    ->price,
 
                             'billing_unit' =>
                                 $propertyContract
@@ -410,13 +474,20 @@ class BookingRequestService
                     ];
                 }
             );
-        } catch (Throwable $exception) {
+        } catch (
+            Throwable $exception
+        ) {
             if (
-                is_string($storedPath)
+                is_string(
+                    $storedPath
+                )
                 && $storedPath !== ''
             ) {
-                Storage::disk('local')
-                    ->delete($storedPath);
+                Storage::disk(
+                    'local'
+                )->delete(
+                    $storedPath
+                );
             }
 
             throw $exception;
@@ -433,7 +504,10 @@ class BookingRequestService
                     'property_id',
                     $property->id
                 )
-                ->where('status', true)
+                ->where(
+                    'status',
+                    true
+                )
                 ->whereHas(
                     'contract',
                     function (
@@ -476,13 +550,17 @@ class BookingRequestService
             PriceList::query()
                 ->where(
                     'property_contract_id',
-                    $propertyContract->id
+                    $propertyContract
+                        ->id
                 )
                 ->where(
                     'room_type_id',
                     $roomType->id
                 )
-                ->where('status', true)
+                ->where(
+                    'status',
+                    true
+                )
                 ->whereDate(
                     'effective_from',
                     '<=',
@@ -511,131 +589,12 @@ class BookingRequestService
         if (! $priceList) {
             throw ValidationException::withMessages([
                 'room_type_slug' => [
-                    'The selected room type is not available for this location and accommodation term.',
+                    'The selected room type is not offered for this location and accommodation term.',
                 ],
             ]);
         }
 
         return $priceList;
-    }
-
-    /**
-     * @return array{
-     *     check_in: CarbonImmutable,
-     *     check_out: CarbonImmutable,
-     *     duration_units: int
-     * }
-     */
-    private function resolveStayDates(
-        StayTerm $stayTerm,
-        array $data,
-        ?int $minimumNights,
-        ?int $maximumMonths
-    ): array {
-        if (
-            $stayTerm ===
-            StayTerm::SHORT_TERM
-        ) {
-            $checkIn =
-                CarbonImmutable::createFromFormat(
-                    'Y-m-d',
-                    $data[
-                        'check_in_date'
-                    ]
-                )->startOfDay();
-
-            $checkOut =
-                CarbonImmutable::createFromFormat(
-                    'Y-m-d',
-                    $data[
-                        'check_out_date'
-                    ]
-                )->startOfDay();
-
-            $nights = (int)
-                $checkIn->diffInDays(
-                    $checkOut
-                );
-
-            $minimum =
-                $minimumNights ?? 1;
-
-            if ($nights < $minimum) {
-                throw ValidationException::withMessages([
-                    'check_out_date' => [
-                        "The selected stay must be at least {$minimum} night(s).",
-                    ],
-                ]);
-            }
-
-            if (
-                $maximumMonths !== null
-                && $checkOut->greaterThan(
-                    $checkIn
-                        ->addMonthsNoOverflow(
-                            $maximumMonths
-                        )
-                )
-            ) {
-                throw ValidationException::withMessages([
-                    'check_out_date' => [
-                        "A short-term stay cannot exceed {$maximumMonths} months.",
-                    ],
-                ]);
-            }
-
-            return [
-                'check_in' =>
-                    $checkIn,
-
-                'check_out' =>
-                    $checkOut,
-
-                'duration_units' =>
-                    $nights,
-            ];
-        }
-
-        /*
-         * Long-term applications target the next
-         * complete future September-to-August period.
-         */
-        $today =
-            CarbonImmutable::today();
-
-        $checkIn =
-            CarbonImmutable::create(
-                $today->year,
-                9,
-                1
-            )->startOfDay();
-
-        if (
-            $today->greaterThan(
-                $checkIn
-            )
-        ) {
-            $checkIn =
-                $checkIn->addYear();
-        }
-
-        $checkOut =
-            CarbonImmutable::create(
-                $checkIn->year + 1,
-                8,
-                31
-            )->startOfDay();
-
-        return [
-            'check_in' =>
-                $checkIn,
-
-            'check_out' =>
-                $checkOut,
-
-            'duration_units' =>
-                12,
-        ];
     }
 
     private function generateBookingReference(): string
@@ -644,9 +603,13 @@ class BookingRequestService
             $reference =
                 sprintf(
                     'ALI-%s-%s',
-                    now()->format('Y'),
+                    now()->format(
+                        'Y'
+                    ),
                     Str::upper(
-                        Str::random(8)
+                        Str::random(
+                            8
+                        )
                     )
                 );
         } while (

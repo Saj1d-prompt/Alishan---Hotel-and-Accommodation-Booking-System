@@ -8,93 +8,143 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class PropertyOfferResource extends JsonResource
 {
-    public function toArray(Request $request): array
-    {
-        $term = StayTerm::fromContractCode(
-            $this->contract->code
-        );
+    public function toArray(
+        Request $request
+    ): array {
+        $term =
+            StayTerm::fromContractCode(
+                $this
+                    ->contract
+                    ->code
+            );
 
-        $roomTypes = $this->priceLists
-            ->filter(
-                fn ($priceList) =>
-                    $priceList->roomType !== null
-            )
-            ->sortBy(
-                fn ($priceList) =>
-                    $priceList
-                        ->roomType
-                        ->display_order
-            )
-            ->map(function ($priceList) {
-                return [
-                    'uuid' =>
-                        $priceList->roomType->uuid,
-
-                    'name' =>
-                        $priceList->roomType->name,
-
-                    'slug' =>
-                        $priceList->roomType->slug,
-
-                    'capacity' =>
+        $roomTypes =
+            $this
+                ->priceLists
+                ->filter(
+                    fn ($priceList) =>
                         $priceList
                             ->roomType
-                            ->default_capacity,
-
-                    'description' =>
+                        !== null
+                )
+                ->sortBy(
+                    fn ($priceList) =>
                         $priceList
                             ->roomType
-                            ->description,
+                            ->display_order
+                )
+                ->map(
+                    function (
+                        $priceList
+                    ) {
+                        $availableRooms =
+                            (int) (
+                                $priceList
+                                    ->getAttribute(
+                                        'available_room_count'
+                                    )
+                                ?? 0
+                            );
 
-                    'rate' => [
-                        /*
-                         * This is the price for one occupant
-                         * for one billing unit.
-                         */
-                        'amount' =>
-                            $priceList->price,
+                        return [
+                            'uuid' =>
+                                $priceList
+                                    ->roomType
+                                    ->uuid,
 
-                        'currency' =>
-                            $priceList
-                                ->currency
-                                ->value,
+                            'name' =>
+                                $priceList
+                                    ->roomType
+                                    ->name,
 
-                        'billing_unit' =>
-                            $this
-                                ->contract
-                                ->billing_unit,
+                            'slug' =>
+                                $priceList
+                                    ->roomType
+                                    ->slug,
 
-                        'charge_basis' =>
-                            $priceList
-                                ->charge_basis
-                                ->value,
+                            'capacity' =>
+                                $priceList
+                                    ->roomType
+                                    ->default_capacity,
 
-                        'charge_basis_label' =>
-                            $priceList
-                                ->charge_basis
-                                ->label(),
+                            'description' =>
+                                $priceList
+                                    ->roomType
+                                    ->description,
 
-                        'utilities_included' =>
-                            $priceList
-                                ->utilities_included,
-                    ],
-                ];
-            })
-            ->values();
+                            'rate' => [
+                                /*
+                                 * Price for one
+                                 * occupant and one
+                                 * billing unit.
+                                 */
+                                'amount' =>
+                                    $priceList
+                                        ->price,
+
+                                'currency' =>
+                                    $priceList
+                                        ->currency
+                                        ->value,
+
+                                'billing_unit' =>
+                                    $this
+                                        ->contract
+                                        ->billing_unit,
+
+                                'charge_basis' =>
+                                    $priceList
+                                        ->charge_basis
+                                        ->value,
+
+                                'charge_basis_label' =>
+                                    $priceList
+                                        ->charge_basis
+                                        ->label(),
+
+                                'utilities_included' =>
+                                    $priceList
+                                        ->utilities_included,
+                            ],
+
+                            /*
+                             * This is calculated
+                             * from actual physical
+                             * rooms.
+                             */
+                            'availability' => [
+                                'available' =>
+                                    $availableRooms
+                                    > 0,
+
+                                'available_rooms' =>
+                                    $availableRooms,
+                            ],
+                        ];
+                    }
+                )
+                ->values();
 
         return [
             'location' => [
                 'uuid' =>
-                    $this->property->uuid,
+                    $this
+                        ->property
+                        ->uuid,
 
                 'name' =>
-                    $this->property->name,
+                    $this
+                        ->property
+                        ->name,
 
                 'slug' =>
-                    $this->property->slug,
+                    $this
+                        ->property
+                        ->slug,
 
                 'city' =>
-                    $this->property
+                    $this
+                        ->property
                         ->city
                         ?->name,
             ],
@@ -107,17 +157,45 @@ class PropertyOfferResource extends JsonResource
                     $term->label(),
 
                 'billing_unit' =>
-                    $this->contract
+                    $this
+                        ->contract
                         ->billing_unit,
+            ],
+
+            /*
+             * Exact period used for inventory
+             * checking.
+             */
+            'availability' => [
+                'checked' =>
+                    true,
+
+                'occupants' =>
+                    (int)
+                    $this->getAttribute(
+                        'availability_occupants'
+                    ),
+
+                'check_in_date' =>
+                    $this->getAttribute(
+                        'availability_check_in'
+                    ),
+
+                'check_out_date' =>
+                    $this->getAttribute(
+                        'availability_check_out'
+                    ),
             ],
 
             'stay_rules' => [
                 'minimum_nights' =>
-                    $this->contract
+                    $this
+                        ->contract
                         ->min_nights,
 
                 'maximum_months' =>
-                    $this->contract
+                    $this
+                        ->contract
                         ->max_months,
 
                 'fixed_period' =>
@@ -125,7 +203,8 @@ class PropertyOfferResource extends JsonResource
             ],
 
             'allowed_floors' =>
-                $this->allowed_floors,
+                $this
+                    ->allowed_floors,
 
             'room_types' =>
                 $roomTypes,
@@ -135,10 +214,18 @@ class PropertyOfferResource extends JsonResource
     private function fixedPeriod(): ?array
     {
         if (
-            ! $this->contract->fixed_start_month
-            || ! $this->contract->fixed_start_day
-            || ! $this->contract->fixed_end_month
-            || ! $this->contract->fixed_end_day
+            ! $this
+                ->contract
+                ->fixed_start_month
+            || ! $this
+                ->contract
+                ->fixed_start_day
+            || ! $this
+                ->contract
+                ->fixed_end_month
+            || ! $this
+                ->contract
+                ->fixed_end_day
         ) {
             return null;
         }
@@ -146,21 +233,25 @@ class PropertyOfferResource extends JsonResource
         return [
             'start' => [
                 'month' =>
-                    $this->contract
+                    $this
+                        ->contract
                         ->fixed_start_month,
 
                 'day' =>
-                    $this->contract
+                    $this
+                        ->contract
                         ->fixed_start_day,
             ],
 
             'end' => [
                 'month' =>
-                    $this->contract
+                    $this
+                        ->contract
                         ->fixed_end_month,
 
                 'day' =>
-                    $this->contract
+                    $this
+                        ->contract
                         ->fixed_end_day,
             ],
         ];
