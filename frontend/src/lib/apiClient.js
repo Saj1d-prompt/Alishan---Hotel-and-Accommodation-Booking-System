@@ -1,5 +1,10 @@
 import axios from "axios";
 
+import {
+  getAdminToken,
+  removeAdminToken,
+} from "@/lib/authStorage";
+
 const apiClient = axios.create({
   baseURL:
     import.meta.env.VITE_API_URL
@@ -11,5 +16,33 @@ const apiClient = axios.create({
 
   timeout: 30000,
 });
+
+apiClient.interceptors.request.use(
+  (config) => {
+    const token =
+      getAdminToken();
+
+    if (token) {
+      config.headers.Authorization =
+        `Bearer ${token}`;
+    }
+
+    return config;
+  },
+);
+
+apiClient.interceptors.response.use(
+  (response) => response,
+
+  (error) => {
+    if (
+      error.response?.status === 401
+    ) {
+      removeAdminToken();
+    }
+
+    return Promise.reject(error);
+  },
+);
 
 export default apiClient;
