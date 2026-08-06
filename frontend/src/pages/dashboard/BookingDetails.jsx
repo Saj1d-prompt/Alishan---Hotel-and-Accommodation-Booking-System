@@ -6,11 +6,13 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
+
 import {
   useCallback,
   useEffect,
   useState,
 } from "react";
+
 import {
   Link,
   useParams,
@@ -80,11 +82,15 @@ export default function BookingDetails() {
     setDocumentRejectionReason,
   ] = useState("");
 
-  const loadBooking =
+  /*
+   * Used after Admin actions such as passport
+   * verification, approval and rejection.
+   *
+   * This function is not called directly from
+   * the initial useEffect.
+   */
+  const refreshBooking =
     useCallback(async () => {
-      setLoading(true);
-      setError("");
-
       try {
         const response =
           await getAdminBooking(
@@ -96,59 +102,79 @@ export default function BookingDetails() {
         );
 
         setAvailableRooms(
-          response
-            .available_rooms
+          response.available_rooms
           ?? [],
         );
-      } catch (
-        requestError
-      ) {
-        setError(
+
+        setError("");
+
+        return response;
+      } catch (requestError) {
+        const message =
           requestError
             .response
             ?.data
             ?.message
-          ?? "The booking could not be loaded.",
-        );
-      } finally {
-        setLoading(false);
+          ?? "The booking could not be loaded.";
+
+        setError(message);
+
+        throw requestError;
       }
     }, [uuid]);
 
+  /*
+   * Initial API request.
+   *
+   * The asynchronous request is started from
+   * the effect, and state is changed only when
+   * its Promise settles.
+   */
   useEffect(() => {
-    loadBooking();
-  }, [loadBooking]);
+    let cancelled = false;
 
-  if (loading) {
-    return (
-      <PageContainer>
-        <div className="flex min-h-96 items-center justify-center">
-          <Loader2 className="size-10 animate-spin text-indigo-600" />
-        </div>
-      </PageContainer>
-    );
-  }
+    getAdminBooking(uuid)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
 
-  if (
-    error
-    || !booking
-  ) {
-    return (
-      <PageContainer>
-        <p className="text-red-600">
-          {error}
-        </p>
-      </PageContainer>
-    );
-  }
+        setBooking(
+          response.booking,
+        );
 
-  const document =
-    booking
-      .passport_documents?.[0];
+        setAvailableRooms(
+          response.available_rooms
+          ?? [],
+        );
+      })
+      .catch(
+        (requestError) => {
+          if (cancelled) {
+            return;
+          }
 
-  const passportVerified =
-    document?.status
-    === "verified";
+          setError(
+            requestError
+              .response
+              ?.data
+              ?.message
+            ?? "The booking could not be loaded.",
+          );
+        },
+      )
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [uuid]);
 
   const performAction =
     async (callback) => {
@@ -157,10 +183,9 @@ export default function BookingDetails() {
 
       try {
         await callback();
-        await loadBooking();
-      } catch (
-        requestError
-      ) {
+
+        await refreshBooking();
+      } catch (requestError) {
         const errors =
           requestError
             .response
@@ -187,7 +212,51 @@ export default function BookingDetails() {
       }
     };
 
-  const handleApprove = () =>
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="flex min-h-96 items-center justify-center">
+          <Loader2 className="size-10 animate-spin text-indigo-600" />
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (
+    error
+    && !booking
+  ) {
+    return (
+      <PageContainer>
+        <Link
+          to="/admin/bookings"
+          className="inline-flex items-center gap-2 font-medium text-slate-600 hover:text-indigo-600"
+        >
+          <ArrowLeft size={18} />
+          Back to Bookings
+        </Link>
+
+        <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          {error}
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (!booking) {
+    return null;
+  }
+
+  const document =
+    booking
+      .passport_documents?.[0]
+    ?? null;
+
+  const passportVerified =
+    document?.status
+    === "verified";
+
+  const handleApprove = () => {
     performAction(
       async () => {
         await approveAdminBooking(
@@ -205,20 +274,28 @@ export default function BookingDetails() {
         );
       },
     );
+  };
 
   const handleRejectBooking =
-    () =>
+    () => {
       performAction(
         async () => {
           await rejectAdminBooking(
             booking.uuid,
             rejectionReason,
           );
+
+          setRejectionReason("");
         },
       );
+    };
 
   const handleVerifyDocument =
-    () =>
+    () => {
+      if (!document) {
+        return;
+      }
+
       performAction(
         async () => {
           await verifyGuestDocument(
@@ -226,17 +303,51 @@ export default function BookingDetails() {
           );
         },
       );
+    };
 
   const handleRejectDocument =
-    () =>
+    () => {
+      if (!document) {
+        return;
+      }
+
       performAction(
         async () => {
           await rejectGuestDocument(
             document.uuid,
             documentRejectionReason,
           );
+
+          setDocumentRejectionReason(
+            "",
+          );
         },
       );
+    };
+
+  const handleDownloadDocument =
+    async () => {
+      if (!document) {
+        return;
+      }
+
+      try {
+        setError("");
+
+        await downloadGuestDocument(
+          document.uuid,
+          document.original_name,
+        );
+      } catch (requestError) {
+        setError(
+          requestError
+            .response
+            ?.data
+            ?.message
+          ?? "The passport document could not be downloaded.",
+        );
+      }
+    };
 
   return (
     <PageContainer>
@@ -277,6 +388,7 @@ export default function BookingDetails() {
 
       <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="space-y-8">
+          {/* Applicant */}
           <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
             <h2 className="text-2xl font-bold text-slate-950">
               Applicant
@@ -289,9 +401,7 @@ export default function BookingDetails() {
                 </dt>
 
                 <dd className="mt-1 font-semibold text-slate-900">
-                  {
-                    booking.guest.name
-                  }
+                  {booking.guest.name}
                 </dd>
               </div>
 
@@ -300,10 +410,8 @@ export default function BookingDetails() {
                   Email
                 </dt>
 
-                <dd className="mt-1 font-semibold text-slate-900">
-                  {
-                    booking.guest.email
-                  }
+                <dd className="mt-1 break-all font-semibold text-slate-900">
+                  {booking.guest.email}
                 </dd>
               </div>
 
@@ -313,9 +421,7 @@ export default function BookingDetails() {
                 </dt>
 
                 <dd className="mt-1 font-semibold text-slate-900">
-                  {
-                    booking.guest.phone
-                  }
+                  {booking.guest.phone}
                 </dd>
               </div>
 
@@ -335,6 +441,7 @@ export default function BookingDetails() {
             </dl>
           </section>
 
+          {/* Accommodation */}
           <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
             <h2 className="text-2xl font-bold text-slate-950">
               Accommodation
@@ -346,7 +453,7 @@ export default function BookingDetails() {
                   Property
                 </dt>
 
-                <dd className="mt-1 font-semibold">
+                <dd className="mt-1 font-semibold text-slate-900">
                   {
                     booking
                       .property
@@ -360,7 +467,7 @@ export default function BookingDetails() {
                   Room Type
                 </dt>
 
-                <dd className="mt-1 font-semibold">
+                <dd className="mt-1 font-semibold text-slate-900">
                   {
                     booking
                       .room_type
@@ -374,7 +481,7 @@ export default function BookingDetails() {
                   Occupants
                 </dt>
 
-                <dd className="mt-1 font-semibold">
+                <dd className="mt-1 font-semibold text-slate-900">
                   {
                     booking.guest_count
                   }
@@ -386,7 +493,7 @@ export default function BookingDetails() {
                   Contract
                 </dt>
 
-                <dd className="mt-1 font-semibold">
+                <dd className="mt-1 font-semibold text-slate-900">
                   {
                     booking
                       .contract
@@ -400,7 +507,7 @@ export default function BookingDetails() {
                   Check In
                 </dt>
 
-                <dd className="mt-1 font-semibold">
+                <dd className="mt-1 font-semibold text-slate-900">
                   {
                     booking
                       .check_in_date
@@ -413,7 +520,7 @@ export default function BookingDetails() {
                   Check Out
                 </dt>
 
-                <dd className="mt-1 font-semibold">
+                <dd className="mt-1 font-semibold text-slate-900">
                   {
                     booking
                       .check_out_date
@@ -423,6 +530,7 @@ export default function BookingDetails() {
             </dl>
           </section>
 
+          {/* Passport */}
           <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
             <div className="flex items-center gap-3">
               <ShieldCheck className="size-6 text-indigo-600" />
@@ -434,27 +542,28 @@ export default function BookingDetails() {
 
             {!document ? (
               <p className="mt-5 text-red-600">
-                No passport document is attached.
+                No passport document is
+                attached.
               </p>
             ) : (
               <>
                 <div className="mt-6 rounded-2xl bg-slate-50 p-5">
-                  <p className="font-semibold text-slate-900">
+                  <p className="break-all font-semibold text-slate-900">
                     {
-                      document.original_name
+                      document
+                        .original_name
                     }
                   </p>
 
                   <p className="mt-1 text-sm text-slate-500">
                     Status:{" "}
                     <span className="font-semibold capitalize">
-                      {
-                        document.status
-                      }
+                      {document.status}
                     </span>
                   </p>
 
-                  {document.rejection_reason ? (
+                  {document
+                    .rejection_reason ? (
                     <p className="mt-3 text-sm text-red-600">
                       {
                         document
@@ -466,13 +575,10 @@ export default function BookingDetails() {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    downloadGuestDocument(
-                      document.uuid,
-                      document.original_name,
-                    )
+                  onClick={
+                    handleDownloadDocument
                   }
-                  className="mt-5 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-5 py-3 font-semibold text-slate-700"
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   <Download size={18} />
                   Download Passport
@@ -481,48 +587,71 @@ export default function BookingDetails() {
                 {booking.status
                   === "pending_review" ? (
                   <div className="mt-6 border-t border-slate-200 pt-6">
-                    <button
-                      type="button"
-                      disabled={
-                        actionLoading
-                      }
-                      onClick={
-                        handleVerifyDocument
-                      }
-                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
-                    >
-                      <CheckCircle2 size={18} />
-                      Verify Passport
-                    </button>
+                    {document.status
+                      !== "verified" ? (
+                      <button
+                        type="button"
+                        disabled={
+                          actionLoading
+                        }
+                        onClick={
+                          handleVerifyDocument
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
+                      >
+                        <CheckCircle2
+                          size={18}
+                        />
+                        Verify Passport
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2 font-semibold text-emerald-700">
+                        <CheckCircle2
+                          size={20}
+                        />
+                        Passport Verified
+                      </div>
+                    )}
 
-                    <textarea
-                      rows={3}
-                      value={
-                        documentRejectionReason
-                      }
-                      onChange={(event) =>
-                        setDocumentRejectionReason(
-                          event.target.value,
-                        )
-                      }
-                      placeholder="Reason for rejecting passport proof"
-                      className="mt-5 w-full rounded-xl border border-slate-300 p-3"
-                    />
+                    {document.status
+                      !== "verified" ? (
+                      <>
+                        <textarea
+                          rows={3}
+                          value={
+                            documentRejectionReason
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            setDocumentRejectionReason(
+                              event
+                                .target
+                                .value,
+                            )
+                          }
+                          placeholder="Reason for rejecting passport proof"
+                          className="mt-5 w-full rounded-xl border border-slate-300 p-3 outline-none focus:border-indigo-500"
+                        />
 
-                    <button
-                      type="button"
-                      disabled={
-                        actionLoading
-                        || !documentRejectionReason.trim()
-                      }
-                      onClick={
-                        handleRejectDocument
-                      }
-                      className="mt-3 inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
-                    >
-                      <XCircle size={18} />
-                      Reject Passport
-                    </button>
+                        <button
+                          type="button"
+                          disabled={
+                            actionLoading
+                            || !documentRejectionReason.trim()
+                          }
+                          onClick={
+                            handleRejectDocument
+                          }
+                          className="mt-3 inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
+                        >
+                          <XCircle
+                            size={18}
+                          />
+                          Reject Passport
+                        </button>
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
               </>
@@ -531,6 +660,7 @@ export default function BookingDetails() {
         </div>
 
         <aside className="space-y-8">
+          {/* Pricing */}
           <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-wider text-indigo-600">
               Pricing
@@ -559,7 +689,7 @@ export default function BookingDetails() {
                 Estimated total
               </p>
 
-              <p className="mt-1 text-2xl font-bold">
+              <p className="mt-1 text-2xl font-bold text-slate-950">
                 €
                 {
                   booking
@@ -572,22 +702,28 @@ export default function BookingDetails() {
           {booking.status
             === "pending_review" ? (
             <>
+              {/* Approve */}
               <section className="rounded-3xl border border-emerald-200 bg-white p-7 shadow-sm">
                 <h2 className="text-xl font-bold text-slate-950">
                   Approve Booking
                 </h2>
 
                 {!passportVerified ? (
-                  <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
-                    Verify the passport proof before approval.
+                  <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                    Verify the passport
+                    proof before approval.
                   </p>
                 ) : null}
 
-                <label className="mt-5 block text-sm font-semibold">
+                <label
+                  htmlFor="roomUuid"
+                  className="mt-5 block text-sm font-semibold"
+                >
                   Physical Room
                 </label>
 
                 <select
+                  id="roomUuid"
                   value={roomUuid}
                   onChange={(event) =>
                     setRoomUuid(
@@ -606,7 +742,9 @@ export default function BookingDetails() {
                         key={room.uuid}
                         value={room.uuid}
                       >
-                        {room.room_number}
+                        {
+                          room.room_number
+                        }
                         {" · Floor "}
                         {room.floor ?? "—"}
                         {" · Capacity "}
@@ -618,16 +756,22 @@ export default function BookingDetails() {
 
                 {availableRooms.length
                   === 0 ? (
-                  <p className="mt-3 text-sm text-amber-700">
-                    No active verified physical rooms currently match this request.
+                  <p className="mt-3 text-sm leading-6 text-amber-700">
+                    No active physical
+                    rooms currently match
+                    this request.
                   </p>
                 ) : null}
 
-                <label className="mt-5 block text-sm font-semibold">
+                <label
+                  htmlFor="payableAmount"
+                  className="mt-5 block text-sm font-semibold"
+                >
                   Payable Amount (€)
                 </label>
 
                 <input
+                  id="payableAmount"
                   type="number"
                   min="0.01"
                   step="0.01"
@@ -643,14 +787,20 @@ export default function BookingDetails() {
                 />
 
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  This is the amount Stripe will collect later. Do not guess the client&apos;s long-term payment policy.
+                  This will become the
+                  Stripe payment amount
+                  later.
                 </p>
 
-                <label className="mt-5 block text-sm font-semibold">
+                <label
+                  htmlFor="paymentDueAt"
+                  className="mt-5 block text-sm font-semibold"
+                >
                   Payment Deadline
                 </label>
 
                 <input
+                  id="paymentDueAt"
                   type="datetime-local"
                   value={
                     paymentDueAt
@@ -675,7 +825,7 @@ export default function BookingDetails() {
                   onClick={
                     handleApprove
                   }
-                  className="mt-6 flex w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  className="mt-6 flex w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {actionLoading
                     ? "Processing..."
@@ -683,6 +833,7 @@ export default function BookingDetails() {
                 </button>
               </section>
 
+              {/* Reject booking */}
               <section className="rounded-3xl border border-red-200 bg-white p-7 shadow-sm">
                 <h2 className="text-xl font-bold text-slate-950">
                   Reject Booking
@@ -699,7 +850,7 @@ export default function BookingDetails() {
                     )
                   }
                   placeholder="Explain why the application is being rejected"
-                  className="mt-5 w-full rounded-xl border border-slate-300 p-3"
+                  className="mt-5 w-full rounded-xl border border-slate-300 p-3 outline-none focus:border-red-500"
                 />
 
                 <button
@@ -711,7 +862,7 @@ export default function BookingDetails() {
                   onClick={
                     handleRejectBooking
                   }
-                  className="mt-4 w-full rounded-xl bg-red-600 px-5 py-3 font-semibold text-white disabled:opacity-40"
+                  className="mt-4 w-full rounded-xl bg-red-600 px-5 py-3 font-semibold text-white transition hover:bg-red-700 disabled:opacity-40"
                 >
                   Reject Booking
                 </button>
@@ -719,11 +870,12 @@ export default function BookingDetails() {
             </>
           ) : (
             <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-              <h2 className="text-xl font-bold">
+              <h2 className="text-xl font-bold text-slate-950">
                 Review Complete
               </h2>
 
-              {booking.assigned_room ? (
+              {booking
+                .assigned_room ? (
                 <p className="mt-4 text-slate-600">
                   Assigned room:{" "}
                   <strong>
@@ -736,7 +888,8 @@ export default function BookingDetails() {
                 </p>
               ) : null}
 
-              {booking.payable_amount ? (
+              {booking
+                .payable_amount ? (
                 <p className="mt-3 text-slate-600">
                   Payable amount:{" "}
                   <strong>
@@ -749,7 +902,8 @@ export default function BookingDetails() {
                 </p>
               ) : null}
 
-              {booking.rejection_reason ? (
+              {booking
+                .rejection_reason ? (
                 <p className="mt-3 text-red-600">
                   {
                     booking

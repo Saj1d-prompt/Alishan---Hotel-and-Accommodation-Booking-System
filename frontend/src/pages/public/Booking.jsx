@@ -17,7 +17,7 @@ import {
   Upload,
   Users,
 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import {
   Link,
   useNavigate,
@@ -132,10 +132,10 @@ const Booking = () => {
 
   const term =
     location
-    && isTermAllowed(
-      location,
-      requestedTerm,
-    )
+      && isTermAllowed(
+        location,
+        requestedTerm,
+      )
       ? requestedTerm
       : null;
 
@@ -150,17 +150,17 @@ const Booking = () => {
     Number.isInteger(
       requestedOccupants,
     )
-    && requestedOccupants > 0
+      && requestedOccupants > 0
       ? requestedOccupants
       : 1;
 
   const rate =
     location && room && term
       ? getRoomRate(
-          location,
-          term,
-          room.capacity,
-        )
+        location,
+        term,
+        room.capacity,
+      )
       : null;
 
   const startDate =
@@ -191,7 +191,7 @@ const Booking = () => {
     register,
     handleSubmit,
     setError,
-    watch,
+    control,
 
     formState: {
       errors,
@@ -209,10 +209,13 @@ const Booking = () => {
     },
   });
 
+  const passportFiles = useWatch({
+    control,
+    name: "passport_copy",
+  });
+
   const selectedPassportFile =
-    watch(
-      "passport_copy",
-    )?.[0];
+    passportFiles?.[0] ?? null;
 
   if (!contextIsValid) {
     return (
@@ -261,9 +264,9 @@ const Booking = () => {
   const durationUnits =
     term === "short_term"
       ? differenceInCalendarDays(
-          parseISO(endDate),
-          parseISO(startDate),
-        )
+        parseISO(endDate),
+        parseISO(startDate),
+      )
       : 12;
 
   const estimatedTotal =
@@ -274,19 +277,19 @@ const Booking = () => {
   const stayPeriodLabel =
     term === "short_term"
       ? `${format(
-          parseISO(startDate),
-          "dd MMM yyyy",
-        )} – ${format(
-          parseISO(endDate),
-          "dd MMM yyyy",
-        )}`
+        parseISO(startDate),
+        "dd MMM yyyy",
+      )} – ${format(
+        parseISO(endDate),
+        "dd MMM yyyy",
+      )}`
       : `${format(
-          longTermPeriod.startDate,
-          "dd MMM yyyy",
-        )} – ${format(
-          longTermPeriod.endDate,
-          "dd MMM yyyy",
-        )}`;
+        longTermPeriod.startDate,
+        "dd MMM yyyy",
+      )} – ${format(
+        longTermPeriod.endDate,
+        "dd MMM yyyy",
+      )}`;
 
   const onSubmit = async (
     formValues,
@@ -433,8 +436,8 @@ const Booking = () => {
                     )
                       ? messages[0]
                       : String(
-                          messages,
-                        ),
+                        messages,
+                      ),
                 },
               );
             },
@@ -751,8 +754,8 @@ const Booking = () => {
                           (files) =>
                             !files?.[0]
                             || files[0]
-                                .size
-                              <= MAX_FILE_SIZE
+                              .size
+                            <= MAX_FILE_SIZE
                             || "The passport copy must not exceed 10 MB.",
 
                         type:
