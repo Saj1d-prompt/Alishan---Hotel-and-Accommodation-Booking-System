@@ -14,8 +14,7 @@ class PropertyCatalogService
         private readonly
         RoomAvailabilityService
         $roomAvailabilityService
-    ) {
-    }
+    ) {}
 
     public function getLocations(): Collection
     {
@@ -27,7 +26,14 @@ class PropertyCatalogService
                 'status',
                 true
             )
-            ->withCount('rooms')
+            ->withCount([
+                'rooms as rooms_count' =>
+                fn($query) =>
+                $query->where(
+                    'status',
+                    true
+                ),
+            ])
             ->with([
                 'city:id,name,slug',
 
@@ -48,47 +54,47 @@ class PropertyCatalogService
                 },
 
                 'propertyContracts' =>
-                    function (
-                        $query
-                    ) use ($today) {
-                        $query
-                            ->where(
-                                'status',
-                                true
-                            )
-                            ->whereHas(
-                                'contract',
-                                fn (
-                                    $contractQuery
-                                ) =>
-                                    $contractQuery
-                                        ->where(
-                                            'status',
-                                            true
-                                        )
-                            )
-                            ->with([
-                                'contract',
+                function (
+                    $query
+                ) use ($today) {
+                    $query
+                        ->where(
+                            'status',
+                            true
+                        )
+                        ->whereHas(
+                            'contract',
+                            fn(
+                                $contractQuery
+                            ) =>
+                            $contractQuery
+                                ->where(
+                                    'status',
+                                    true
+                                )
+                        )
+                        ->with([
+                            'contract',
 
-                                'priceLists' =>
-                                    function (
-                                        $priceQuery
-                                    ) use (
+                            'priceLists' =>
+                            function (
+                                $priceQuery
+                            ) use (
+                                $today
+                            ) {
+                                $this
+                                    ->applyCurrentPriceConstraints(
+                                        $priceQuery,
                                         $today
-                                    ) {
-                                        $this
-                                            ->applyCurrentPriceConstraints(
-                                                $priceQuery,
-                                                $today
-                                            );
+                                    );
 
-                                        $priceQuery
-                                            ->with(
-                                                'roomType'
-                                            );
-                                    },
-                            ]);
-                    },
+                                $priceQuery
+                                    ->with(
+                                        'roomType'
+                                    );
+                            },
+                        ]);
+                },
             ])
             ->orderBy(
                 'display_order'
@@ -103,9 +109,14 @@ class PropertyCatalogService
         $today =
             now()->toDateString();
 
-        $property->loadCount(
-            'rooms'
-        );
+        $property->loadCount([
+            'rooms as rooms_count' =>
+            fn($query) =>
+            $query->where(
+                'status',
+                true
+            ),
+        ]);
 
         $property->load([
             'city:id,name,slug',
@@ -127,47 +138,47 @@ class PropertyCatalogService
             },
 
             'propertyContracts' =>
-                function (
-                    $query
-                ) use ($today) {
-                    $query
-                        ->where(
-                            'status',
-                            true
-                        )
-                        ->whereHas(
-                            'contract',
-                            fn (
-                                $contractQuery
-                            ) =>
-                                $contractQuery
-                                    ->where(
-                                        'status',
-                                        true
-                                    )
-                        )
-                        ->with([
-                            'contract',
+            function (
+                $query
+            ) use ($today) {
+                $query
+                    ->where(
+                        'status',
+                        true
+                    )
+                    ->whereHas(
+                        'contract',
+                        fn(
+                            $contractQuery
+                        ) =>
+                        $contractQuery
+                            ->where(
+                                'status',
+                                true
+                            )
+                    )
+                    ->with([
+                        'contract',
 
-                            'priceLists' =>
-                                function (
-                                    $priceQuery
-                                ) use (
+                        'priceLists' =>
+                        function (
+                            $priceQuery
+                        ) use (
+                            $today
+                        ) {
+                            $this
+                                ->applyCurrentPriceConstraints(
+                                    $priceQuery,
                                     $today
-                                ) {
-                                    $this
-                                        ->applyCurrentPriceConstraints(
-                                            $priceQuery,
-                                            $today
-                                        );
+                                );
 
-                                    $priceQuery
-                                        ->with(
-                                            'roomType'
-                                        );
-                                },
-                        ]);
-                },
+                            $priceQuery
+                                ->with(
+                                    'roomType'
+                                );
+                        },
+                    ]);
+            },
         ]);
 
         return $property;
@@ -185,58 +196,58 @@ class PropertyCatalogService
 
         $propertyContract =
             $property
-                ->propertyContracts()
-                ->where(
-                    'status',
-                    true
-                )
-                ->whereHas(
-                    'contract',
-                    function (
-                        $query
-                    ) use ($term) {
-                        $query
-                            ->where(
-                                'code',
-                                $term
-                                    ->contractCode()
-                            )
-                            ->where(
-                                'status',
-                                true
-                            );
-                    }
-                )
-                ->with([
-                    'property.city',
+            ->propertyContracts()
+            ->where(
+                'status',
+                true
+            )
+            ->whereHas(
+                'contract',
+                function (
+                    $query
+                ) use ($term) {
+                    $query
+                        ->where(
+                            'code',
+                            $term
+                                ->contractCode()
+                        )
+                        ->where(
+                            'status',
+                            true
+                        );
+                }
+            )
+            ->with([
+                'property.city',
 
-                    'contract',
+                'contract',
 
-                    'priceLists' =>
+                'priceLists' =>
+                function (
+                    $query
+                ) use ($today) {
+                    $this
+                        ->applyCurrentPriceConstraints(
+                            $query,
+                            $today
+                        );
+
+                    $query->with([
+                        'roomType' =>
                         function (
-                            $query
-                        ) use ($today) {
-                            $this
-                                ->applyCurrentPriceConstraints(
-                                    $query,
-                                    $today
+                            $roomTypeQuery
+                        ) {
+                            $roomTypeQuery
+                                ->where(
+                                    'status',
+                                    true
                                 );
-
-                            $query->with([
-                                'roomType' =>
-                                    function (
-                                        $roomTypeQuery
-                                    ) {
-                                        $roomTypeQuery
-                                            ->where(
-                                                'status',
-                                                true
-                                            );
-                                    },
-                            ]);
                         },
-                ])
-                ->first();
+                    ]);
+                },
+            ])
+            ->first();
 
         if (! $propertyContract) {
             throw ValidationException::withMessages([
@@ -252,13 +263,13 @@ class PropertyCatalogService
          */
         $period =
             $this
-                ->roomAvailabilityService
-                ->resolveStayPeriod(
-                    $propertyContract,
-                    $term,
-                    $checkInDate,
-                    $checkOutDate
-                );
+            ->roomAvailabilityService
+            ->resolveStayPeriod(
+                $propertyContract,
+                $term,
+                $checkInDate,
+                $checkOutDate
+            );
 
         /*
          * Attach live physical availability to
@@ -278,19 +289,15 @@ class PropertyCatalogService
 
             $availableRoomCount =
                 $this
-                    ->roomAvailabilityService
-                    ->countAvailableRooms(
-                        $propertyContract,
-                        $priceList
-                            ->roomType,
-                        $occupants,
-                        $period[
-                            'check_in'
-                        ],
-                        $period[
-                            'check_out'
-                        ]
-                    );
+                ->roomAvailabilityService
+                ->countAvailableRooms(
+                    $propertyContract,
+                    $priceList
+                        ->roomType,
+                    $occupants,
+                    $period['check_in'],
+                    $period['check_out']
+                );
 
             /*
              * Temporary runtime attribute only.
@@ -309,16 +316,12 @@ class PropertyCatalogService
 
         $propertyContract->setAttribute(
             'availability_check_in',
-            $period[
-                'check_in'
-            ]->toDateString()
+            $period['check_in']->toDateString()
         );
 
         $propertyContract->setAttribute(
             'availability_check_out',
-            $period[
-                'check_out'
-            ]->toDateString()
+            $period['check_out']->toDateString()
         );
 
         return $propertyContract;
@@ -355,14 +358,14 @@ class PropertyCatalogService
             )
             ->whereHas(
                 'roomType',
-                fn (
+                fn(
                     $roomTypeQuery
                 ) =>
-                    $roomTypeQuery
-                        ->where(
-                            'status',
-                            true
-                        )
+                $roomTypeQuery
+                    ->where(
+                        'status',
+                        true
+                    )
             );
     }
 }

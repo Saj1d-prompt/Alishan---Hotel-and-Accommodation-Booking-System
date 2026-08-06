@@ -13,7 +13,7 @@ const locations = [
 
     image: seskinesImage,
 
-    totalRooms: 13,
+    totalRooms: 14,
 
     description:
       "Comfortable long-term accommodation in Vilnius with fully furnished rooms and convenient access to public transport and nearby facilities.",
@@ -114,7 +114,7 @@ const locations = [
 
     image: pylimoImage,
 
-    totalRooms: 24,
+    totalRooms: 25,
 
     description:
       "Centrally located accommodation at Pylimo gatvė 63 offering both short-term and long-term accommodation options.",
