@@ -21,6 +21,7 @@ class PaymentInstallment extends Model
         'due_at',
         'status',
         'paid_at',
+        'reminder_notification_queued_at',
     ];
 
     protected $casts = [
@@ -37,6 +38,9 @@ class PaymentInstallment extends Model
             'datetime',
 
         'paid_at' =>
+            'datetime',
+
+        'reminder_notification_queued_at' =>
             'datetime',
     ];
 

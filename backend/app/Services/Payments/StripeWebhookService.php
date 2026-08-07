@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\PaymentGatewayEvent;
 use App\Models\PaymentInstallment;
+use App\Services\PaymentNotificationService;
 use BackedEnum;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,11 @@ use Throwable;
 
 class StripeWebhookService
 {
+    public function __construct(
+        private PaymentNotificationService $paymentNotificationService
+    ) {
+    }
+
     public function handle(
         Event $event,
         string $rawPayload
@@ -28,8 +34,7 @@ class StripeWebhookService
             );
 
         /*
-         * Stripe can deliver the same event
-         * more than once.
+         * Stripe may deliver the same event more than once.
          */
         if (
             $eventRecord
@@ -49,9 +54,11 @@ class StripeWebhookService
             ) {
                 case 'checkout.session.completed':
                     if (
-                        ($object
-                            ->payment_status
-                            ?? null)
+                        (
+                            $object
+                                ->payment_status
+                            ?? null
+                        )
                         === 'paid'
                     ) {
                         $this
@@ -91,10 +98,6 @@ class StripeWebhookService
                     break;
 
                 default:
-                    /*
-                     * Event does not affect our
-                     * payment state.
-                     */
                     break;
             }
 
@@ -155,26 +158,91 @@ class StripeWebhookService
                     );
 
                 /*
-                 * Webhook retry.
+                 * A refunded transaction must never
+                 * be processed as a new successful payment.
                  */
                 if (
-                    in_array(
-                        $currentPaymentStatus,
-                        [
-                            PaymentStatus
-                                ::PAID
-                                ->value,
-
-                            PaymentStatus
-                                ::REFUNDED
-                                ->value,
-                        ],
-                        true
-                    )
+                    $currentPaymentStatus
+                    ===
+                    PaymentStatus
+                        ::REFUNDED
+                        ->value
                 ) {
                     return;
                 }
 
+                /*
+                 * A previous Stripe webhook attempt may have
+                 * committed the payment successfully but failed
+                 * before the receipt notification was queued.
+                 *
+                 * If that happens, Stripe retries the webhook
+                 * and we queue only the missing receipt.
+                 */
+                if (
+                    $currentPaymentStatus
+                    ===
+                    PaymentStatus
+                        ::PAID
+                        ->value
+                ) {
+                    if (
+                        $payment
+                            ->receipt_notification_queued_at
+                        ||
+                        $payment
+                            ->failure_code
+                        ===
+                        'duplicate_payment_review'
+                    ) {
+                        return;
+                    }
+
+                    $installment =
+                        PaymentInstallment::query()
+                            ->whereKey(
+                                $payment
+                                    ->payment_installment_id
+                            )
+                            ->lockForUpdate()
+                            ->first();
+
+                    if (! $installment) {
+                        throw new RuntimeException(
+                            'Payment installment was not found.'
+                        );
+                    }
+
+                    $booking =
+                        Booking::query()
+                            ->whereKey(
+                                $payment
+                                    ->booking_id
+                            )
+                            ->lockForUpdate()
+                            ->first();
+
+                    if (! $booking) {
+                        throw new RuntimeException(
+                            'Booking was not found.'
+                        );
+                    }
+
+                    $this
+                        ->queuePaymentReceipt(
+                            $booking,
+                            $payment,
+                            $installment
+                        );
+
+                    return;
+                }
+
+                /*
+                 * Before changing our database,
+                 * verify amount and currency against
+                 * what our own Payment record expected.
+                 */
                 $this
                     ->validateStripeAmount(
                         $payment,
@@ -214,7 +282,8 @@ class StripeWebhookService
                 if (
                     $installment
                         ->booking_id
-                    !== $booking
+                    !==
+                    $booking
                         ->id
                 ) {
                     throw new RuntimeException(
@@ -256,9 +325,8 @@ class StripeWebhookService
                     null;
 
                 /*
-                 * Apply the payment only up to
-                 * the remaining installment
-                 * balance.
+                 * Calculate how much can actually be applied
+                 * to the installment.
                  */
                 $installmentAmount =
                     round(
@@ -280,7 +348,8 @@ class StripeWebhookService
                     max(
                         round(
                             $installmentAmount
-                            - $alreadyPaid,
+                            -
+                            $alreadyPaid,
                             2
                         ),
                         0
@@ -301,21 +370,16 @@ class StripeWebhookService
                     );
 
                 /*
-                 * This normally indicates that
-                 * another successful Checkout
-                 * already settled the same
-                 * installment.
+                 * Stripe succeeded but this installment had
+                 * already been paid by another Checkout.
                  *
-                 * The Stripe transaction remains
-                 * recorded as paid, but the
-                 * accommodation balance must not
-                 * be reduced twice.
+                 * Do not reduce the accommodation balance twice.
                  */
                 if (
                     $receivedAmount > 0
                     &&
                     $appliedAmount
-                        <= 0.009
+                    <= 0.009
                 ) {
                     $payment
                         ->failure_code =
@@ -328,6 +392,9 @@ class StripeWebhookService
 
                 $payment->save();
 
+                /*
+                 * Apply payment to installment.
+                 */
                 if (
                     $appliedAmount > 0
                 ) {
@@ -335,7 +402,8 @@ class StripeWebhookService
                         min(
                             round(
                                 $alreadyPaid
-                                + $appliedAmount,
+                                +
+                                $appliedAmount,
                                 2
                             ),
                             $installmentAmount
@@ -354,7 +422,8 @@ class StripeWebhookService
                         $newPaidAmount
                         >=
                         $installmentAmount
-                            - 0.009
+                        -
+                        0.009
                     ) {
                         $installment
                             ->status =
@@ -365,16 +434,12 @@ class StripeWebhookService
                             now();
                     }
 
-                    $installment
-                        ->save();
+                    $installment->save();
                 }
 
                 /*
-                 * The first required installment
-                 * confirms the room reservation.
-                 *
-                 * A later unpaid balance does not
-                 * make the booking unconfirmed.
+                 * First successful required installment
+                 * confirms the accommodation booking.
                  */
                 $bookingStatus =
                     $this->enumValue(
@@ -385,17 +450,17 @@ class StripeWebhookService
                 if (
                     $installment
                         ->installment_number
-                        === 1
+                    === 1
                     &&
                     $installment
                         ->status
-                        === 'paid'
+                    === 'paid'
                     &&
                     $bookingStatus
-                        ===
-                        BookingStatus
-                            ::AWAITING_PAYMENT
-                            ->value
+                    ===
+                    BookingStatus
+                        ::AWAITING_PAYMENT
+                        ->value
                 ) {
                     $booking
                         ->booking_status =
@@ -407,12 +472,13 @@ class StripeWebhookService
                         ->confirmed_at =
                         $booking
                             ->confirmed_at
-                        ?? now();
+                        ??
+                        now();
                 }
 
                 /*
-                 * Point booking.payment_due_at
-                 * to the next installment.
+                 * Point booking.payment_due_at to
+                 * whatever unpaid installment comes next.
                  */
                 $nextInstallment =
                     $booking
@@ -437,8 +503,54 @@ class StripeWebhookService
                         ?->due_at;
 
                 $booking->save();
+
+                /*
+                 * Only send a payment receipt when money
+                 * was actually applied to the booking.
+                 */
+                if (
+                    $appliedAmount
+                    > 0.009
+                ) {
+                    $this
+                        ->queuePaymentReceipt(
+                            $booking,
+                            $payment,
+                            $installment
+                        );
+                }
             }
         );
+    }
+
+    private function queuePaymentReceipt(
+        Booking $booking,
+        Payment $payment,
+        PaymentInstallment $installment
+    ): void {
+        /*
+         * Protect against duplicate Stripe webhook deliveries.
+         */
+        if (
+            $payment
+                ->receipt_notification_queued_at
+        ) {
+            return;
+        }
+
+        $this
+            ->paymentNotificationService
+            ->sendPaymentReceived(
+                $booking,
+                $payment,
+                $installment
+            );
+
+        $payment
+            ->receipt_notification_queued_at =
+            now();
+
+        $payment->save();
     }
 
     private function markPaymentFailed(
@@ -470,8 +582,8 @@ class StripeWebhookService
                     );
 
                 /*
-                 * Never downgrade a transaction
-                 * that was already confirmed paid.
+                 * Never downgrade an already-paid or
+                 * refunded transaction.
                  */
                 if (
                     in_array(
@@ -533,7 +645,8 @@ class StripeWebhookService
                 $session
                     ->metadata
                     ->payment_uuid
-                ?? null;
+                ??
+                null;
 
             if (! $paymentUuid) {
                 return null;
@@ -561,8 +674,10 @@ class StripeWebhookService
             (int)
             round(
                 (float)
-                $payment->amount
-                * 100
+                $payment
+                    ->amount
+                *
+                100
             );
 
         $receivedMinor =
@@ -570,12 +685,14 @@ class StripeWebhookService
             (
                 $session
                     ->amount_total
-                ?? -1
+                ??
+                -1
             );
 
         if (
             $expectedMinor
-            !== $receivedMinor
+            !==
+            $receivedMinor
         ) {
             throw new RuntimeException(
                 'Stripe payment amount does not match the expected payment amount.'
@@ -596,13 +713,15 @@ class StripeWebhookService
                 (
                     $session
                         ->currency
-                    ?? ''
+                    ??
+                    ''
                 )
             );
 
         if (
             $expectedCurrency
-            !== $receivedCurrency
+            !==
+            $receivedCurrency
         ) {
             throw new RuntimeException(
                 'Stripe payment currency does not match the expected currency.'
@@ -655,9 +774,8 @@ class StripeWebhookService
             QueryException
         ) {
             /*
-             * Another webhook process may have
-             * inserted the same unique event
-             * simultaneously.
+             * Another webhook request may have inserted
+             * the same unique Stripe event simultaneously.
              */
             return PaymentGatewayEvent::query()
                 ->where(
@@ -691,7 +809,9 @@ class StripeWebhookService
         mixed $value
     ): ?string {
         if (
-            is_string($value)
+            is_string(
+                $value
+            )
             &&
             $value !== ''
         ) {
@@ -699,7 +819,9 @@ class StripeWebhookService
         }
 
         if (
-            is_object($value)
+            is_object(
+                $value
+            )
             &&
             isset(
                 $value->id
