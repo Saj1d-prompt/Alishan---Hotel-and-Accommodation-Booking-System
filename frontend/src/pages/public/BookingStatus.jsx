@@ -31,6 +31,10 @@ import {
   getBookingStatus,
 } from "@/services/bookingApi";
 
+import {
+  createBookingCheckout,
+} from "@/services/paymentApi";
+
 const STATUS_CONFIG = {
   pending_review: {
     label:
@@ -515,6 +519,17 @@ export default function BookingStatus() {
       null,
   });
 
+  const [
+    checkoutState,
+    setCheckoutState,
+  ] = useState({
+    loading:
+      false,
+
+    error:
+      null,
+  });
+
   useEffect(() => {
     if (
       !reference
@@ -594,6 +609,99 @@ export default function BookingStatus() {
     token,
     requestKey,
   ]);
+
+  const handlePayNow =
+    async () => {
+      if (
+        checkoutState.loading
+      ) {
+        return;
+      }
+
+      if (
+        !reference
+        ||
+        !token
+      ) {
+        setCheckoutState({
+          loading:
+            false,
+
+          error:
+            "The private booking access link is missing or invalid.",
+        });
+
+        return;
+      }
+
+      setCheckoutState({
+        loading:
+          true,
+
+        error:
+          null,
+      });
+
+      try {
+        const checkout =
+          await createBookingCheckout(
+            reference,
+            token,
+          );
+
+        if (
+          !checkout
+            ?.checkout_url
+        ) {
+          throw new Error(
+            "Stripe Checkout URL was not returned.",
+          );
+        }
+
+        window.location.assign(
+          checkout
+            .checkout_url,
+        );
+      } catch (
+        requestError
+      ) {
+        const validationErrors =
+          requestError
+            ?.response
+            ?.data
+            ?.errors;
+
+        const firstValidationError =
+          validationErrors
+            ? Object
+                .values(
+                  validationErrors,
+                )
+                .flat()
+                .find(
+                  Boolean,
+                )
+            : null;
+
+        setCheckoutState({
+          loading:
+            false,
+
+          error:
+            firstValidationError
+            ??
+            requestError
+              ?.response
+              ?.data
+              ?.message
+            ??
+            requestError
+              ?.message
+            ??
+            "Secure payment checkout could not be started. Please try again.",
+        });
+      }
+    };
 
   if (!token) {
     return (
@@ -890,6 +998,25 @@ export default function BookingStatus() {
     ??
     null;
 
+  const canPay =
+    Boolean(
+      nextInstallment,
+    )
+    &&
+    Number(
+      nextInstallment
+        ?.amount_remaining
+      ?? 0,
+    ) > 0
+    &&
+    (
+      status
+      === "awaiting_payment"
+      ||
+      status
+      === "confirmed"
+    );
+
   return (
     <main className="min-h-screen bg-slate-50 px-6 pb-24 pt-32">
       <div className="mx-auto max-w-5xl">
@@ -919,12 +1046,20 @@ export default function BookingStatus() {
 
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              setCheckoutState({
+                loading:
+                  false,
+
+                error:
+                  null,
+              });
+
               setRefreshVersion(
                 (current) =>
                   current + 1,
-              )
-            }
+              );
+            }}
             className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
             <RefreshCw
@@ -1335,30 +1470,71 @@ export default function BookingStatus() {
                       </div>
                     ) : null}
 
-                    <button
-                      type="button"
-                      disabled
-                      className="mt-5 flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-slate-200 px-5 py-4 font-semibold text-slate-500"
-                    >
-                      <CreditCard
-                        size={19}
-                      />
+                    {canPay ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={
+                            handlePayNow
+                          }
+                          disabled={
+                            checkoutState
+                              .loading
+                          }
+                          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-4 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                        >
+                          {checkoutState
+                            .loading ? (
+                            <Loader2 className="size-5 animate-spin" />
+                          ) : (
+                            <CreditCard
+                              size={19}
+                            />
+                          )}
 
-                      Pay{" "}
-                      {formatMoney(
-                        nextInstallment
-                          .amount_remaining,
-                        currency,
-                      )}
-                    </button>
+                          {checkoutState
+                            .loading
+                            ? "Opening Secure Checkout..."
+                            : (
+                              <>
+                                Pay{" "}
+                                {formatMoney(
+                                  nextInstallment
+                                    .amount_remaining,
+                                  currency,
+                                )}
+                              </>
+                            )}
+                        </button>
 
-                    <p className="mt-3 text-center text-xs leading-5 text-slate-500">
-                      Stripe Checkout
-                      will activate this
-                      button in the next
-                      implementation
-                      step.
-                    </p>
+                        {checkoutState
+                          .error ? (
+                          <p className="mt-3 rounded-xl bg-red-50 p-3 text-center text-sm font-medium leading-6 text-red-700">
+                            {
+                              checkoutState
+                                .error
+                            }
+                          </p>
+                        ) : (
+                          <p className="mt-3 text-center text-xs leading-5 text-slate-500">
+                            Secure payment
+                            is processed by
+                            Stripe. Your
+                            card details
+                            are not stored
+                            by Alishan
+                            Accommodation.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="mt-5 rounded-xl bg-slate-100 p-4 text-center text-sm leading-6 text-slate-600">
+                        Online payment is
+                        not available for
+                        this booking
+                        status.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-6 rounded-2xl bg-emerald-50 p-5">

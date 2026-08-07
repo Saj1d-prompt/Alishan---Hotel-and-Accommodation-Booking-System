@@ -325,7 +325,7 @@ class StripeCheckoutService
 
                 'expires_at' =>
                     now()
-                        ->addMinutes(30)
+                        ->addMinutes(31)
                         ->timestamp,
 
                 'line_items' => [

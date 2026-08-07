@@ -5,7 +5,9 @@ use App\Http\Controllers\Api\V1\Admin\AdminAuthController;
 use App\Http\Controllers\Api\V1\Admin\BookingController as AdminBookingController;
 use App\Http\Controllers\Api\V1\Admin\GuestDocumentController;
 use App\Http\Controllers\Api\V1\PublicApi\BookingController as PublicBookingController;
+use App\Http\Controllers\Api\V1\PublicApi\PaymentCheckoutController;
 use App\Http\Controllers\Api\V1\PublicApi\PropertyController;
+use App\Http\Controllers\Api\V1\Webhooks\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')
@@ -58,6 +60,35 @@ Route::prefix('v1')
             ]
         )->middleware(
             'throttle:30,1'
+        );
+
+        /*
+         * PUBLIC STRIPE CHECKOUT
+         *
+         * Protected by the private booking token.
+         */
+        Route::post(
+            '/bookings/{bookingReference}/payments/checkout',
+            [
+                PaymentCheckoutController::class,
+                'store',
+            ]
+        )->middleware(
+            'throttle:10,1'
+        );
+
+        /*
+         * STRIPE WEBHOOK
+         *
+         * Authentication is performed using
+         * Stripe's webhook signature.
+         */
+        Route::post(
+            '/stripe/webhook',
+            [
+                StripeWebhookController::class,
+                'handle',
+            ]
         );
 
         /*
@@ -161,7 +192,7 @@ Route::prefix('v1')
                 );
 
                 /*
-                 * Existing guest management.
+                 * Existing guest management
                  */
                 Route::apiResource(
                     'guests',
