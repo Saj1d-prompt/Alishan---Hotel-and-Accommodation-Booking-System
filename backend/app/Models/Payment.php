@@ -11,11 +11,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Payment extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = [
         'uuid',
         'booking_id',
+        'payment_installment_id',
         'payment_reference',
         'gateway',
         'gateway_session_id',
@@ -32,16 +34,37 @@ class Payment extends Model
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
-        'refunded_amount' => 'decimal:2',
-        'currency' => Currency::class,
-        'payment_status' => PaymentStatus::class,
-        'paid_at' => 'datetime',
-        'refunded_at' => 'datetime',
+        'amount' =>
+            'decimal:2',
+
+        'refunded_amount' =>
+            'decimal:2',
+
+        'currency' =>
+            Currency::class,
+
+        'payment_status' =>
+            PaymentStatus::class,
+
+        'paid_at' =>
+            'datetime',
+
+        'refunded_at' =>
+            'datetime',
     ];
 
     public function booking(): BelongsTo
     {
-        return $this->belongsTo(Booking::class);
+        return $this->belongsTo(
+            Booking::class
+        );
+    }
+
+    public function installment(): BelongsTo
+    {
+        return $this->belongsTo(
+            PaymentInstallment::class,
+            'payment_installment_id'
+        );
     }
 }

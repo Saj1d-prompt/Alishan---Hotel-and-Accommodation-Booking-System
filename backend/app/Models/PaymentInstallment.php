@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PaymentInstallment extends Model
 {
@@ -23,7 +24,8 @@ class PaymentInstallment extends Model
     ];
 
     protected $casts = [
-        'installment_number' => 'integer',
+        'installment_number' =>
+            'integer',
 
         'amount' =>
             'decimal:2',
@@ -42,6 +44,14 @@ class PaymentInstallment extends Model
     {
         return $this->belongsTo(
             Booking::class
+        );
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(
+            Payment::class,
+            'payment_installment_id'
         );
     }
 }
