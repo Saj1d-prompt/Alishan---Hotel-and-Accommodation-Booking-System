@@ -21,7 +21,7 @@ import Breadcrumb from "@/components/public/Breadcrumb";
 import PricingSidebar from "@/components/public/PricingSidebar";
 import RoomAmenities from "@/components/public/RoomAmenities";
 import RoomDetailsHero from "@/components/public/RoomDetailsHero";
-import RoomGallery from "@/components/public/RoomGallery";
+// import RoomGallery from "@/components/public/RoomGallery";
 import RoomOverview from "@/components/public/RoomOverview";
 
 import locations from "@/data/locations";
@@ -30,6 +30,10 @@ import roomTypes from "@/data/roomTypes";
 import {
   isTermAllowed,
 } from "@/lib/accommodation";
+
+import {
+  getRoomPresentation,
+} from "@/lib/roomMedia";
 
 import {
   getLocationRoomTypeOffers,
@@ -74,11 +78,17 @@ const RoomDetails = () => {
     );
 
   const location =
-    locations.find(
-      (item) =>
-        item.slug
-        === locationSlug,
-    );
+  locations.find(
+    (item) =>
+      item.slug
+      === locationSlug,
+  );
+
+const displayRoom =
+  getRoomPresentation(
+    room,
+    location,
+  );
 
   const term =
     location
@@ -442,25 +452,25 @@ const RoomDetails = () => {
       />
 
       <RoomDetailsHero
-        room={room}
+        room={displayRoom}
         isAvailable={
           isAvailable
         }
       />
-
+{/* 
       <RoomGallery
-        room={room}
-      />
+        room={displayRoom}
+      /> */}
 
       <section className="py-20">
         <div className="mx-auto grid max-w-7xl gap-12 px-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:px-8">
           <div className="space-y-16">
             <RoomOverview
-              room={room}
+              room={displayRoom}
             />
 
             <RoomAmenities
-              room={room}
+              room={displayRoom}
             />
 
             {!isAvailable
@@ -501,7 +511,7 @@ const RoomDetails = () => {
                 location={
                   location
                 }
-                room={room}
+                room={displayRoom}
                 term={term}
                 offer={
                   liveOffer
@@ -531,7 +541,7 @@ const RoomDetails = () => {
       {isAvailable ? (
         <BookingCTA
           location={location}
-          room={room}
+          room={displayRoom}
           term={term}
         />
       ) : null}

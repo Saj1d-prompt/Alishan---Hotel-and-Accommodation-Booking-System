@@ -3,6 +3,7 @@ import {
   ArrowRight,
   BedDouble,
   CheckCircle2,
+  ImageOff,
   Loader2,
   Users,
 } from "lucide-react";
@@ -26,6 +27,10 @@ import {
 } from "@/lib/accommodation";
 
 import {
+  getRoomImage,
+} from "@/lib/roomMedia";
+
+import {
   getLocationRoomTypeOffers,
 } from "@/services/catalogApi";
 
@@ -33,7 +38,9 @@ const RoomTypes = ({
   location,
   selectedTerm,
 }) => {
-  const [searchParams] =
+  const [
+    searchParams,
+  ] =
     useSearchParams();
 
   const [
@@ -56,7 +63,8 @@ const RoomTypes = ({
     Number.isInteger(
       requestedOccupants,
     )
-    && requestedOccupants > 0
+    &&
+    requestedOccupants > 0
       ? requestedOccupants
       : 1;
 
@@ -71,14 +79,18 @@ const RoomTypes = ({
     );
 
   /*
-   * Short-term availability cannot be known
-   * without actual dates.
+   * Short-term availability cannot
+   * be calculated without actual
+   * check-in and check-out dates.
    */
   const canCheckAvailability =
-    selectedTerm !== "short_term"
-    || Boolean(
+    selectedTerm
+      !== "short_term"
+    ||
+    Boolean(
       startDate
-      && endDate,
+      &&
+      endDate,
     );
 
   const requestKey =
@@ -101,11 +113,14 @@ const RoomTypes = ({
     );
 
   useEffect(() => {
-    if (!canCheckAvailability) {
+    if (
+      !canCheckAvailability
+    ) {
       return undefined;
     }
 
-    let cancelled = false;
+    let cancelled =
+      false;
 
     getLocationRoomTypeOffers(
       location.slug,
@@ -166,17 +181,20 @@ const RoomTypes = ({
 
             error:
               firstValidationError
-              ?? requestError
+              ??
+              requestError
                 .response
                 ?.data
                 ?.message
-              ?? "Room availability could not be checked.",
+              ??
+              "Room availability could not be checked.",
           });
         },
       );
 
     return () => {
-      cancelled = true;
+      cancelled =
+        true;
     };
   }, [
     canCheckAvailability,
@@ -189,13 +207,14 @@ const RoomTypes = ({
   ]);
 
   /*
-   * When search parameters change, old API
-   * results must not be displayed while the
-   * new request is pending.
+   * When search parameters change,
+   * do not display stale availability
+   * while waiting for the new API call.
    */
   const isLoading =
     canCheckAvailability
-    && requestState.key
+    &&
+    requestState.key
       !== requestKey;
 
   const offerData =
@@ -210,7 +229,9 @@ const RoomTypes = ({
       ? requestState.error
       : null;
 
-  if (!canCheckAvailability) {
+  if (
+    !canCheckAvailability
+  ) {
     return (
       <section
         id="room-types"
@@ -227,11 +248,14 @@ const RoomTypes = ({
             </h2>
 
             <p className="mt-6 text-lg leading-8 text-slate-600">
-              Short-term room availability
-              depends on your arrival and
-              departure dates. Select dates
-              from the accommodation search
-              before choosing a room.
+              Short-term room
+              availability depends
+              on your arrival and
+              departure dates.
+              Select dates from the
+              accommodation search
+              before choosing a
+              room.
             </p>
 
             <Link
@@ -276,7 +300,8 @@ const RoomTypes = ({
           <AlertCircle className="mx-auto size-11 text-red-500" />
 
           <h2 className="mt-5 text-3xl font-bold text-slate-950">
-            Availability Could Not Be Checked
+            Availability Could
+            Not Be Checked
           </h2>
 
           <p className="mt-4 text-slate-600">
@@ -288,8 +313,10 @@ const RoomTypes = ({
   }
 
   const offers =
-    offerData?.room_types
-    ?? [];
+    offerData
+      ?.room_types
+    ??
+    [];
 
   return (
     <section
@@ -316,13 +343,15 @@ const RoomTypes = ({
             {occupants}{" "}
             {occupants === 1
               ? "occupant"
-              : "occupants"}.
+              : "occupants"}
+            .
           </p>
 
           {offerData
             ?.availability ? (
             <p className="mt-3 text-sm font-medium text-slate-500">
-              Availability period:{" "}
+              Availability
+              period:{" "}
               {
                 offerData
                   .availability
@@ -338,18 +367,21 @@ const RoomTypes = ({
           ) : null}
         </div>
 
-        {offers.length === 0 ? (
+        {offers.length
+        === 0 ? (
           <div className="mx-auto mt-14 max-w-2xl rounded-3xl border border-amber-200 bg-amber-50 p-8 text-center">
             <AlertCircle className="mx-auto size-10 text-amber-600" />
 
             <h3 className="mt-4 text-xl font-bold text-amber-950">
-              No room types are offered
+              No room types are
+              offered
             </h3>
 
             <p className="mt-3 leading-7 text-amber-800">
-              There are currently no
-              priced room types for this
-              location and accommodation
+              There are currently
+              no priced room types
+              for this location
+              and accommodation
               term.
             </p>
           </div>
@@ -367,6 +399,29 @@ const RoomTypes = ({
                 if (!room) {
                   return null;
                 }
+
+                /*
+                 * -------------------------------------------------
+                 * Location-specific room image
+                 * -------------------------------------------------
+                 *
+                 * Example:
+                 *
+                 * Latgalių + 2 Bed Room
+                 * -> Latgalių 2-bed image
+                 *
+                 * Pylimo + 2 Bed Room
+                 * -> Pylimo 2-bed image
+                 *
+                 * If no room-specific image exists yet,
+                 * the location's main image is used.
+                 */
+                const roomImage =
+                  getRoomImage(
+                    room,
+                    location.slug,
+                    location.image,
+                  );
 
                 const available =
                   Boolean(
@@ -406,7 +461,8 @@ const RoomTypes = ({
 
                 const roomUrl =
                   `/rooms/${room.slug}`
-                  + `?${roomUrlParams.toString()}`;
+                  +
+                  `?${roomUrlParams.toString()}`;
 
                 return (
                   <article
@@ -415,28 +471,41 @@ const RoomTypes = ({
                     }
                     className={[
                       "group flex h-full flex-col overflow-hidden rounded-3xl border bg-white shadow-md transition-all duration-300",
+
                       available
                         ? "border-slate-200 hover:-translate-y-1 hover:shadow-xl"
                         : "border-slate-200 opacity-75",
                     ].join(" ")}
                   >
                     <div className="relative overflow-hidden">
-                      <img
-                        src={
-                          room.image
-                        }
-                        alt={
-                          offer.name
-                        }
-                        className={[
-                          "h-56 w-full object-cover transition duration-700",
-                          available
-                            ? "group-hover:scale-105"
-                            : "grayscale-[35%]",
-                        ].join(
-                          " ",
-                        )}
-                      />
+                      {roomImage ? (
+                        <img
+                          src={
+                            roomImage
+                          }
+                          alt={`${location.name} ${offer.name}`}
+                          className={[
+                            "h-56 w-full object-cover transition duration-700",
+
+                            available
+                              ? "group-hover:scale-105"
+                              : "grayscale-[35%]",
+                          ].join(
+                            " ",
+                          )}
+                        />
+                      ) : (
+                        <div className="flex h-56 w-full items-center justify-center bg-slate-100 text-slate-400">
+                          <div className="text-center">
+                            <ImageOff className="mx-auto size-10" />
+
+                            <p className="mt-3 text-sm font-medium">
+                              Room photo
+                              coming soon
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 
@@ -446,11 +515,13 @@ const RoomTypes = ({
                             <CheckCircle2
                               size={16}
                             />
+
                             Available
                           </span>
                         ) : (
                           <span className="rounded-full bg-slate-900/90 px-4 py-2 text-sm font-semibold text-white shadow">
-                            Currently unavailable
+                            Currently
+                            unavailable
                           </span>
                         )}
                       </div>
@@ -510,7 +581,7 @@ const RoomTypes = ({
                           offer.capacity
                         }{" "}
                         {offer.capacity
-                          === 1
+                        === 1
                           ? "person"
                           : "people"}
                       </div>
@@ -525,7 +596,10 @@ const RoomTypes = ({
 
                       <div className="mt-6 space-y-3">
                         {room.amenities
-                          .slice(0, 4)
+                          .slice(
+                            0,
+                            4,
+                          )
                           .map(
                             (
                               amenity,
@@ -537,9 +611,7 @@ const RoomTypes = ({
                                 className="flex items-center gap-3 text-sm text-slate-600"
                               >
                                 <CheckCircle2
-                                  size={
-                                    17
-                                  }
+                                  size={17}
                                   className="shrink-0 text-green-500"
                                 />
 
@@ -562,10 +634,9 @@ const RoomTypes = ({
                             className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
                           >
                             View Details
+
                             <ArrowRight
-                              size={
-                                18
-                              }
+                              size={18}
                             />
                           </Link>
                         ) : (
@@ -574,7 +645,8 @@ const RoomTypes = ({
                             disabled
                             className="flex w-full cursor-not-allowed items-center justify-center rounded-xl bg-slate-200 px-5 py-3 font-semibold text-slate-500"
                           >
-                            Currently Unavailable
+                            Currently
+                            Unavailable
                           </button>
                         )}
                       </div>

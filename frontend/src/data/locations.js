@@ -1,17 +1,56 @@
-import seskinesImage from "@/assets/Mikotel/DSC01665-HDR-Edit.jpg";
-import pylimoImage from "@/assets/Mikotel/DSC01700-HDR-Edit.jpg";
-import latgaliuImage from "@/assets/Mikotel/DSC01860-HDR-Edit.jpg";
+import seskinesImage1 from "@/assets/Mikotel/Seskines Pictures/20.jpeg";
+import seskinesImage2 from "@/assets/Mikotel/Seskines Pictures/24.jpeg";
+import seskinesImage3 from "@/assets/Mikotel/Seskines Pictures/25.jpeg";
+import seskinesImage4 from "@/assets/Mikotel/Seskines Pictures/27.jpeg";
+import seskinesImage5 from "@/assets/Mikotel/Seskines Pictures/21.jpeg";
 
-import { STAY_TERMS } from "@/data/stayTerms";
+import latgaliuImage1 from "@/assets/Mikotel/Latgaliu Pictures/7.jpeg";
+import latgaliuImage2 from "@/assets/Mikotel/Latgaliu Pictures/1.jpeg";
+import latgaliuImage3 from "@/assets/Mikotel/Latgaliu Pictures/3.jpeg";
+import latgaliuImage4 from "@/assets/Mikotel/Latgaliu Pictures/5.jpeg";
+import latgaliuImage5 from "@/assets/Mikotel/Latgaliu Pictures/9.jpeg";
+
+import pylimoImage1 from "@/assets/Mikotel/DSC01860-HDR-Edit.jpg";
+import pylimoImage2 from "@/assets/Mikotel/DSC01805-Edit.jpg";
+import pylimoImage3 from "@/assets/Mikotel/DSC01770-HDR-Edit.jpg";
+import pylimoImage4 from "@/assets/Mikotel/DSC01940-HDR-Edit.jpg";
+import pylimoImage5 from "@/assets/Mikotel/DSC01670-HDR.jpg";
+
+import {
+  STAY_TERMS,
+} from "@/data/stayTerms";
 
 const locations = [
   {
     id: 1,
+
     slug: "seskines",
+
     name: "Šeškinės",
+
     city: "Vilnius",
 
-    image: seskinesImage,
+    /*
+     * Main location image.
+     *
+     * Used for location cards, hero fallbacks,
+     * and anywhere that needs one representative image.
+     */
+    image:
+      seskinesImage1,
+
+    /*
+     * Location gallery.
+     *
+     * Add additional Šeškinės images here later.
+     */
+    gallery: [
+      seskinesImage1,
+      seskinesImage2,
+      seskinesImage3,
+      seskinesImage4,
+      seskinesImage5,
+    ],
 
     totalRooms: 14,
 
@@ -31,13 +70,16 @@ const locations = [
       STAY_TERMS.LONG_TERM,
     ],
 
-    defaultTerm: STAY_TERMS.LONG_TERM,
+    defaultTerm:
+      STAY_TERMS.LONG_TERM,
 
     termConfig: {
       [STAY_TERMS.LONG_TERM]: {
-        billingUnit: "month",
+        billingUnit:
+          "month",
 
-        utilitiesIncluded: true,
+        utilitiesIncluded:
+          true,
 
         fixedPeriod: {
           startMonth: 9,
@@ -58,11 +100,30 @@ const locations = [
 
   {
     id: 2,
+
     slug: "latgaliu",
+
     name: "Latgalių",
+
     city: "Vilnius",
 
-    image: latgaliuImage,
+    image:
+      latgaliuImage1,
+
+    /*
+     * Add additional Latgalių property/gallery
+     * images here.
+     *
+     * Room-type images remain separate in
+     * roomTypes.js.
+     */
+    gallery: [
+      latgaliuImage1,
+      latgaliuImage2,
+      latgaliuImage3,
+      latgaliuImage4,
+      latgaliuImage5,
+    ],
 
     totalRooms: 9,
 
@@ -82,13 +143,16 @@ const locations = [
       STAY_TERMS.LONG_TERM,
     ],
 
-    defaultTerm: STAY_TERMS.LONG_TERM,
+    defaultTerm:
+      STAY_TERMS.LONG_TERM,
 
     termConfig: {
       [STAY_TERMS.LONG_TERM]: {
-        billingUnit: "month",
+        billingUnit:
+          "month",
 
-        utilitiesIncluded: false,
+        utilitiesIncluded:
+          false,
 
         fixedPeriod: {
           startMonth: 9,
@@ -108,11 +172,32 @@ const locations = [
 
   {
     id: 3,
+
     slug: "pylimo",
+
     name: "Pylimo gatvė 63",
+
     city: "Vilnius",
 
-    image: pylimoImage,
+    image:
+      pylimoImage1,
+
+    /*
+     * Pylimo location gallery.
+     *
+     * This is the gallery shown on:
+     *
+     * /locations/pylimo
+     *
+     * Add additional Pylimo property photos here.
+     */
+    gallery: [
+      pylimoImage1,
+      pylimoImage2,
+      pylimoImage3,
+      pylimoImage4,
+      pylimoImage5,
+    ],
 
     totalRooms: 25,
 
@@ -133,13 +218,16 @@ const locations = [
       STAY_TERMS.LONG_TERM,
     ],
 
-    defaultTerm: STAY_TERMS.LONG_TERM,
+    defaultTerm:
+      STAY_TERMS.LONG_TERM,
 
     termConfig: {
       [STAY_TERMS.SHORT_TERM]: {
-        billingUnit: "night",
+        billingUnit:
+          "night",
 
-        utilitiesIncluded: null,
+        utilitiesIncluded:
+          null,
 
         minNights: 1,
 
@@ -158,9 +246,11 @@ const locations = [
       },
 
       [STAY_TERMS.LONG_TERM]: {
-        billingUnit: "month",
+        billingUnit:
+          "month",
 
-        utilitiesIncluded: false,
+        utilitiesIncluded:
+          false,
 
         fixedPeriod: {
           startMonth: 9,
