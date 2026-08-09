@@ -683,7 +683,7 @@ const Booking = () => {
                   htmlFor="passport_number"
                   className="text-sm font-semibold text-slate-700"
                 >
-                  Passport number
+                  Passport or Temporary Residence Permit Number
                 </label>
 
                 <Input
@@ -694,13 +694,13 @@ const Booking = () => {
                     "passport_number",
                     {
                       required:
-                        "Passport number is required.",
+                        "Passport or Temporary Residence Permit Number is required.",
 
                       minLength: {
                         value: 4,
 
                         message:
-                          "Enter a valid passport number.",
+                          "Enter a valid Passport or Temporary Residence Permit Number.",
                       },
                     },
                   )}
@@ -720,7 +720,7 @@ const Booking = () => {
                   htmlFor="passport_copy"
                   className="text-sm font-semibold text-slate-700"
                 >
-                  Passport scanned copy
+                  Passport or Temporary Residence Permit scanned copy
                 </label>
 
                 <label
