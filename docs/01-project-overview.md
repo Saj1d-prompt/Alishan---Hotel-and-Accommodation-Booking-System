@@ -1,127 +1,152 @@
-# Project Overview
+# 01 — Project Overview
 
 ## Project Name
 
-Alishan Accommodation Booking System
+**Alishan Accommodation Management System**
 
----
+## Purpose
 
-## Project Description
+Alishan manages the full lifecycle of accommodation applications for multiple Lithuanian properties: public discovery, room-type availability, application intake, document review, physical-room assignment, payment planning, Stripe payment confirmation and administrative operations.
 
-Alishan Accommodation Booking System is a production-ready web application designed to manage student and professional accommodation bookings.
+## What the Product Is Not
 
-The system enables customers to search available accommodations, choose a property, select a room or shared bed, complete online payments, and manage their bookings.
+- Not an Airbnb clone.
+- Not a property sales system.
+- Not a generic hotel demo.
+- Not customer-account driven in v1.
 
-Administrators can manage properties, rooms, pricing, contracts, bookings, users, and payments through an administrative dashboard.
+## Users
 
----
+### Public Guest
 
-# Objectives
+A public guest can:
 
-* Build a modern accommodation booking platform.
-* Support multiple properties.
-* Support room and shared-bed bookings.
-* Integrate secure online payments.
-* Provide an admin management panel.
-* Create a scalable system that can grow with future business requirements.
+- Browse active locations.
+- View property and room-type information.
+- Query live availability/pricing.
+- Submit a booking application.
+- Upload required identity/residence documentation.
+- Receive a booking reference and private access token.
+- Check booking/payment status using the private status link.
+- Start Stripe Checkout when payment is available.
 
----
+A public guest **does not register or log in** in v1.
 
-# Technology Stack
+### Administrator
 
-## Frontend
+An administrator can:
 
-* React (JavaScript)
-* Vite
-* React Router
-* Axios
-* Tailwind CSS
+- Log in through `/admin/login`.
+- View/search/filter bookings.
+- Review booking details.
+- Download, verify or reject guest documents.
+- Assign a physical room.
+- Approve or reject a pending booking.
+- Choose full or partial payment plan.
+- Work with future operational room/history/reporting modules.
 
-## Backend
+## High-Level Architecture
 
-* Laravel 12
-* Laravel Sanctum
-* Spatie Laravel Permission
+```text
+Browser
+  │
+  ├── Public React UI
+  └── Admin React UI
+          │
+          ▼
+     Axios / REST
+          │
+          ▼
+Laravel 12 API
+  ├── Request validation
+  ├── Controllers
+  ├── Services / business rules
+  ├── Eloquent models
+  ├── Sanctum admin auth
+  ├── Laravel Storage
+  ├── Notifications / scheduler
+  └── Stripe integration
+          │
+          ├── MySQL
+          └── Stripe
+```
 
-## Database
+## Technology Stack
 
-* MySQL / MariaDB
+### Frontend
 
-## Payment Gateway
+- React 19
+- JavaScript
+- Vite
+- React Router
+- Tailwind CSS
+- Framer Motion
+- Lucide React
+- Axios
+- React Hook Form
+- date-fns
 
-* Stripe
+### Backend
 
----
+- Laravel 12
+- REST API
+- Laravel Sanctum
+- Spatie Laravel Permission
+- Laravel Storage
+- Laravel Scheduler / database queue
+- Stripe PHP SDK
 
-# User Roles
+### Infrastructure
 
-## Guest
+- MySQL
+- Hostinger
+- Production frontend: `alishan.lt`
+- Production API: `api.alishan.lt`
+- Production PHP: 8.3
 
-* Browse properties
-* View rooms
-* Search availability
+## Current Core Domain Entities
 
----
+- Country
+- City
+- Property
+- PropertyImage
+- RoomType
+- Room
+- Bed
+- Contract
+- PropertyContract
+- PriceList
+- Guest
+- GuestDocument
+- Booking
+- BookingItem
+- PaymentInstallment
+- Payment
+- PaymentGatewayEvent
+- User
 
-## Customer
+## Current Booking States
 
-* Register/Login
-* Book accommodation
-* Make payments
-* View bookings
-* Manage profile
+- `pending_review`
+- `awaiting_payment`
+- `confirmed`
+- `rejected`
+- `payment_expired`
+- `cancelled`
+- `checked_in`
+- `checked_out`
 
----
+## Financial Summary States
 
-## Administrator
+Derived by the backend from booking total and installment state:
 
-* Manage properties
-* Manage rooms
-* Manage beds
-* Manage pricing
-* Manage contracts
-* Manage bookings
-* Manage users
-* View reports
+- `unpaid`
+- `partially_paid`
+- `paid`
+- `overdue`
 
----
+These are separate from booking status.
 
-# Major Modules
+## Key Design Principle
 
-* Authentication
-* Property Management
-* Room Management
-* Bed Management
-* Pricing Management
-* Booking Management
-* Payment Management
-* User Management
-* Reports
-* Notifications
-
----
-
-# Development Methodology
-
-The project follows an API-first architecture.
-
-React communicates with Laravel through REST APIs.
-
-Laravel handles business logic, authentication, database operations, and payment processing.
-
----
-
-# Project Status
-
-Current Phase:
-
-System Analysis & Database Design
-
-## Architecture
-
-- REST API Architecture
-- Laravel Backend
-- React Frontend
-- MySQL Database
-- Role-Based Access Control (RBAC)
-- Stripe Payment Integration
+The backend is authoritative for business rules, availability, pricing, payment state and security. React renders data and submits user actions; it must not duplicate core domain calculations.

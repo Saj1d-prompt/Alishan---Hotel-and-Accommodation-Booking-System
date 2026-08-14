@@ -33,11 +33,28 @@ class BookingController extends Controller
     ): AnonymousResourceCollection {
         $validated =
             $request->validate([
+                /*
+                 * Real booking lifecycle status.
+                 */
                 'status' => [
                     'nullable',
                     Rule::enum(
                         BookingStatus::class
                     ),
+                ],
+
+                /*
+                 * Derived financial-summary status.
+                 *
+                 * This remains separate from
+                 * booking_status internally.
+                 */
+                'payment_status' => [
+                    'nullable',
+                    Rule::in([
+                        'paid',
+                        'partially_paid',
+                    ]),
                 ],
 
                 'search' => [
@@ -54,6 +71,37 @@ class BookingController extends Controller
                 ],
             ]);
 
+        /*
+         * Total amount already applied to the
+         * booking's payment installments.
+         *
+         * This follows Booking::financialSummary().
+         */
+        $paidAmountSql =
+            '(SELECT COALESCE(
+                SUM(
+                    payment_installments.paid_amount
+                ),
+                0
+            )
+            FROM payment_installments
+            WHERE payment_installments.booking_id
+                = bookings.id)';
+
+        /*
+         * Before approval, estimated_total_amount
+         * is authoritative.
+         *
+         * After approval, total_amount is
+         * authoritative.
+         */
+        $bookingTotalSql =
+            'COALESCE(
+                bookings.total_amount,
+                bookings.estimated_total_amount,
+                0
+            )';
+
         $bookings =
             Booking::query()
                 ->with([
@@ -64,6 +112,15 @@ class BookingController extends Controller
                     'items.contract',
                     'documents',
                     'reviewedBy',
+
+                    /*
+                     * AdminBookingResource calls
+                     * financialSummary().
+                     *
+                     * Eager loading this relationship
+                     * prevents an N+1 query.
+                     */
+                    'paymentInstallments',
                 ])
                 ->when(
                     $validated['status']
@@ -76,6 +133,80 @@ class BookingController extends Controller
                             'booking_status',
                             $status
                         );
+                    }
+                )
+                ->when(
+                    $validated['payment_status']
+                        ?? null,
+                    function (
+                        $query,
+                        string $paymentStatus
+                    ) use (
+                        $paidAmountSql,
+                        $bookingTotalSql
+                    ) {
+                        if (
+                            $paymentStatus
+                            === 'paid'
+                        ) {
+                            /*
+                             * Matches financialSummary():
+                             *
+                             * The booking has a valid
+                             * total and no meaningful
+                             * outstanding balance.
+                             */
+                            $query
+                                ->whereRaw(
+                                    "{$bookingTotalSql} > 0"
+                                )
+                                ->whereRaw(
+                                    "{$paidAmountSql} >= ({$bookingTotalSql} - 0.009)"
+                                );
+
+                            return;
+                        }
+
+                        /*
+                         * Partially paid means:
+                         *
+                         * 1. Some money has been paid.
+                         * 2. An outstanding balance remains.
+                         * 3. No outstanding installment is
+                         *    currently overdue.
+                         *
+                         * financialSummary() gives overdue
+                         * higher priority than partially_paid.
+                         */
+                        $query
+                            ->whereRaw(
+                                "{$paidAmountSql} > 0.009"
+                            )
+                            ->whereRaw(
+                                "{$paidAmountSql} < ({$bookingTotalSql} - 0.009)"
+                            )
+                            ->whereDoesntHave(
+                                'paymentInstallments',
+                                function (
+                                    $installmentQuery
+                                ) {
+                                    $installmentQuery
+                                        ->where(
+                                            'status',
+                                            'pending'
+                                        )
+                                        ->whereColumn(
+                                            'paid_amount',
+                                            '<',
+                                            'amount'
+                                        )
+                                        ->where(
+                                            'due_at',
+                                            '<',
+                                            now()
+                                        );
+                                }
+                            );
                     }
                 )
                 ->when(
